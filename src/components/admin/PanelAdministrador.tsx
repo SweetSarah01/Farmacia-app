@@ -387,14 +387,27 @@ const [form, setForm] = useState({ nombre: "", precio: "", categoria: "", stock:
                           <div className="font-medium">{u.nombre || u.email || "Sin nombre"}</div>
                           <div className="text-slate-500 text-xs">{u.email || "Sin email"}</div>
                         </div>
-                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          u.rol === "admin" ? "bg-purple-700 text-white" :
-                          u.rol === "farmaceutico" ? "bg-violet-600 text-white" :
-                          u.rol === "domiciliario" ? "bg-green-600 text-white" :
-                          "bg-slate-400 text-white"
-                        }`}>
-                          {u.rol || "cliente"}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                            u.rol === "admin" ? "bg-purple-700 text-white" :
+                            u.rol === "farmaceutico" ? "bg-violet-600 text-white" :
+                            u.rol === "domiciliario" ? "bg-green-600 text-white" :
+                            "bg-slate-400 text-white"
+                          }`}>
+                            {u.rol || "cliente"}
+                          </span>
+                          <button
+                            className="px-3 py-1 bg-red-600 text-white rounded-lg text-xs hover:bg-red-700"
+                            onClick={async () => {
+                              if (!window.confirm(`¿Eliminar a ${u.nombre || u.email}?`)) return;
+                              await supabase.from("profiles").delete().eq("id", u.id);
+                              show("Usuario eliminado");
+                              cargar();
+                            }}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
