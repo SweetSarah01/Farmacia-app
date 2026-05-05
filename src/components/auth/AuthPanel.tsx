@@ -43,23 +43,22 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
+        options: {
+          data: {
+            nombre: form.nombre,
+            documento: form.documento,
+            telefono: form.telefono || '',
+            direccion: form.direccion || '',
+            ciudad: form.ciudad || ''
+          }
+        }
       });
       if (authError) {
         setError(authError.message);
         setCargando(false);
         return;
       }
-      if (authData.user) {
-        await supabase.from("profiles").insert({
-          id: authData.user.id,
-          nombre: form.nombre,
-          email: form.email,
-          documento: form.documento,
-          telefono: form.telefono || null,
-          direccion: form.direccion || null,
-          ciudad: form.ciudad || null,
-        });
-      }
+      // El trigger de la base de datos crea el perfil automáticamente
       setCargando(false);
       setModo("login");
       setError("Registro exitoso! Ya puedes iniciar sesión.");
