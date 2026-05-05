@@ -49,12 +49,9 @@ const server = http.createServer((req, res) => {
     let body = data.toString();
 
     if (filePath.endsWith('index.html')) {
-      const envScript = `<script>
-        window.__ENV__ = {
-          VITE_SUPABASE_URL: "${SUPABASE_URL}",
-          VITE_SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}"
-        };
-      </script>`;
+      const escapedUrl = SUPABASE_URL.replace(/"/g, '\\"');
+      const escapedKey = SUPABASE_ANON_KEY.replace(/"/g, '\\"').replace(/`/g, '\\`');
+      const envScript = '<script>window.__ENV__={VITE_SUPABASE_URL:"' + escapedUrl + '",VITE_SUPABASE_ANON_KEY:"' + escapedKey + '"}</script>';
       body = body.replace('</head>', envScript + '</head>');
     }
 
