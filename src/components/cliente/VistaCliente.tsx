@@ -760,7 +760,7 @@ return (
 
       {mostrarPago && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
-          <div className={`${bgCard} rounded-t-3xl sm:rounded-3xl p-5 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200/50 max-h-[90vh] overflow-y-auto`}>
+          <div className={`${bgCard} rounded-t-3xl sm:rounded-3xl p-5 sm:p-8 max-w-md w-full shadow-2xl border border-slate-200/50 max-h-[90vh] overflow-y-auto scrollbar-hide`}>
             <div className="flex items-center justify-between mb-6 sm:mb-8">
               <div>
                 <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-violet-600 to-violet-800 bg-clip-text text-transparent">Método de Pago</h2>
