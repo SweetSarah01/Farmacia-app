@@ -60,10 +60,9 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
         setCargando(false);
         return;
       }
-      // El trigger de la base de datos crea el perfil automáticamente
       setCargando(false);
       setModo("login");
-      setError("Registro exitoso! Ya puedes iniciar sesión.");
+      setError("Registro exitoso! Revisa tu email para confirmar tu cuenta.");
     } catch (err: any) {
       setCargando(false);
       setError("Error: " + err.message);
@@ -109,23 +108,21 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
 
             <div className="mt-3">
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Contraseña</label>
-              <div className="relative">
-                <input
-                  type={mostrarPassword ? "text" : "password"}
-                  name="password"
-                  placeholder=""
-                  value={form.password}
-                  onChange={e => upd("password", e.target.value)}
-                  className={`w-full px-3 py-2 rounded-md border outline-0 ${bgInput}`}
-                  style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setMostrarPassword(!mostrarPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                >
-                  {mostrarPassword ? "🙈" : "👁️"}
-                </button>
+              <input
+                type={mostrarPassword ? "text" : "password"}
+                name="password"
+                placeholder=""
+                value={form.password}
+                onChange={e => upd("password", e.target.value)}
+                className={`w-full px-3 py-2 rounded-md border outline-0 ${bgInput}`}
+                style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
+              />
+              <div 
+                onClick={() => setMostrarPassword(!mostrarPassword)}
+                className="mt-1 text-xs cursor-pointer hover:underline"
+                style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}
+              >
+                {mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
               </div>
             </div>
 
@@ -178,23 +175,21 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
 
             <div className="mt-3">
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Contraseña *</label>
-              <div className="relative">
-                <input
-                  type={mostrarPasswordReg ? "text" : "password"}
-                  name="password"
-                  placeholder=""
-                  value={form.password}
-                  onChange={e => upd("password", e.target.value)}
-                  className={`w-full px-3 py-2 rounded-md border outline-0 ${bgInput}`}
-                  style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setMostrarPasswordReg(!mostrarPasswordReg)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
-                >
-                  {mostrarPasswordReg ? "🙈" : "👁️"}
-                </button>
+              <input
+                type={mostrarPasswordReg ? "text" : "password"}
+                name="password"
+                placeholder=""
+                value={form.password}
+                onChange={e => upd("password", e.target.value)}
+                className={`w-full px-3 py-2 rounded-md border outline-0 ${bgInput}`}
+                style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
+              />
+              <div 
+                onClick={() => setMostrarPasswordReg(!mostrarPasswordReg)}
+                className="mt-1 text-xs cursor-pointer hover:underline"
+                style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}
+              >
+                {mostrarPasswordReg ? "Ocultar contraseña" : "Mostrar contraseña"}
               </div>
             </div>
 
