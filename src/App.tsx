@@ -21,15 +21,27 @@ function AppContent() {
   const [vista, setVista] = useState("cliente");
   const [subVista, setSubVista] = useState("");
   const [modoOscuro, setModoOscuro] = useState(true);
+  const [perfilOverride, setPerfilOverride] = useState<any>(null);
+  const perfilActual = perfilOverride || perfil;
 
   const cerrarSesion = () => supabase.auth.signOut();
+
+  useEffect(() => {
+    setPerfilOverride(null);
+  }, [perfil?.id]);
+
+  useEffect(() => {
+    const handler = (e: Event) => setPerfilOverride((e as CustomEvent).detail);
+    window.addEventListener("perfil-actualizado", handler);
+    return () => window.removeEventListener("perfil-actualizado", handler);
+  }, []);
 
   const bgMain = modoOscuro ? "min-h-screen bg-slate-900 text-white font-sans" : "min-h-screen bg-violet-50 text-slate-800 font-sans";
   const bgNav = modoOscuro ? "bg-gradient-to-r from-slate-800 via-violet-900/30 to-slate-800 border-b border-slate-700" : "bg-gradient-to-r from-violet-100 via-violet-200 to-violet-100 border-b border-violet-300";
   const bgBtnActivo = "bg-violet-600 text-white shadow";
   const bgBtnInactivo = modoOscuro ? "text-slate-400 hover:text-white hover:bg-slate-700" : "text-violet-600 hover:text-white hover:bg-violet-100";
 
-  const rol = perfil?.rol || "cliente";
+  const rol = perfilActual?.rol || "cliente";
   const esSuperAdmin = rol === "superadmin";
   const esAdminFarmacia = rol === "admin";
 const esFarmaceutico = rol === "farmaceutico";
@@ -38,14 +50,14 @@ const esFarmaceutico = rol === "farmaceutico";
   const vistaPorRol = esSuperAdmin ? "superadmin" : esAdminFarmacia ? "admin" : esFarmaceutico ? "farmaceutico" : esDomiciliario ? "domiciliario" : "cliente";
 
   useEffect(() => {
-    if (perfil) {
+    if (perfilActual) {
       setVista(vistaPorRol);
       if (vistaPorRol === "cliente") setSubVista("catalogo");
       else if (vistaPorRol === "farmaceutico") setSubVista("formulas");
       else if (vistaPorRol === "domiciliario") setSubVista("disponibles");
       else if (vistaPorRol === "admin") setSubVista("mi-farmacia");
     }
-  }, [perfil?.rol]);
+  }, [perfilActual?.rol]);
 
   const rolLabel = esSuperAdmin ? "🌐 Super Admin" : esAdminFarmacia ? "🏪 Admin" : esFarmaceutico ? "⚕️ Farmacéutico" : esDomiciliario ? "🚚 Domiciliario" : "👤 Cliente";
 
@@ -78,7 +90,7 @@ const esFarmaceutico = rol === "farmaceutico";
     );
   }
 
-  if (session && perfil) {
+  if (session && perfilActual) {
 return (
     <ThemeContext.Provider value={{ modoOscuro, setModoOscuro }}>
       <div className={bgMain}>
@@ -104,10 +116,10 @@ return (
             ))}
           </div>
         </nav>
-          {vista === "cliente" && <VistaCliente perfil={perfil} cerrarSesion={cerrarSesion} seccion={subVista} setSeccion={setSubVista} />}
-          {vista === "farmaceutico" && <PanelFarmaceutico perfil={perfil} cerrarSesion={cerrarSesion} seccion={subVista} setSeccion={setSubVista} />}
-          {vista === "domiciliario" && <PanelDomiciliario perfil={perfil} cerrarSesion={cerrarSesion} />}
-          {vista === "admin" && <AdminPharmacyPanel perfil={perfil} cerrarSesion={cerrarSesion} seccion={subVista} setSeccion={setSubVista} />}
+          {vista === "cliente" && <VistaCliente perfil={perfilActual} cerrarSesion={cerrarSesion} seccion={subVista} setSeccion={setSubVista} />}
+          {vista === "farmaceutico" && <PanelFarmaceutico perfil={perfilActual} cerrarSesion={cerrarSesion} seccion={subVista} setSeccion={setSubVista} />}
+          {vista === "domiciliario" && <PanelDomiciliario perfil={perfilActual} cerrarSesion={cerrarSesion} />}
+          {vista === "admin" && <AdminPharmacyPanel perfil={perfilActual} cerrarSesion={cerrarSesion} seccion={subVista} setSeccion={setSubVista} />}
           {vista === "superadmin" && <SuperAdminPanel cerrarSesion={cerrarSesion} />}
         </div>
       </ThemeContext.Provider>

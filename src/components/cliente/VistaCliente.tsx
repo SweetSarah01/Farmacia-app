@@ -253,6 +253,10 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
     if (error) {
       show("Error al guardar: " + error.message, "error");
     } else {
+      const { data: perfilActualizado } = await supabase.from("profiles").select("*").eq("id", perfil.id).single();
+      if (perfilActualizado) {
+        window.dispatchEvent(new CustomEvent("perfil-actualizado", { detail: perfilActualizado }));
+      }
       show("Datos guardados correctamente!");
       setEditando(false);
     }
