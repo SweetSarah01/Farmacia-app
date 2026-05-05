@@ -665,7 +665,7 @@ return (
             <div className="text-center py-12 text-slate-500">No hay pedidos</div>
           ) : (
             <div className="space-y-3 sm:space-y-4">
-              {misPedidos.map(pedido => (
+               {misPedidos.map(pedido => (
                 <div key={pedido.id} className={`${bgCard} p-3 sm:p-4 rounded-xl`}>
                   <div className="flex justify-between items-start mb-2">
                     <div>
@@ -674,7 +674,14 @@ return (
                     </div>
                     <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold ${pedido.estado === "entregado" ? "bg-green-600 text-white" : "bg-yellow-500 text-white"}`}>{pedido.estado}</span>
                   </div>
-                  <div className="font-bold text-violet-600 text-right text-sm sm:text-base">{fmtCOP(pedido.total)}</div>
+                  <div className="flex justify-between items-center">
+                    <div className="font-bold text-violet-600 text-sm sm:text-base">{fmtCOP(pedido.total)}</div>
+                    {pedido.codigo_verificacion && pedido.estado !== "entregado" && (
+                      <div className="text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-3 py-1.5 rounded-lg font-bold">
+                        Código: {pedido.codigo_verificacion}
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
