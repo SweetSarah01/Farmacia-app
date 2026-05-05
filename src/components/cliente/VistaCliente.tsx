@@ -14,14 +14,14 @@ function fmtFecha(date: string) {
   return new Date(date).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
 }
 
-function Badge({ estado }: { estado: string }) {
+function Badge({ estado, modoOscuro }: { estado: string; modoOscuro: boolean }) {
   const colors: Record<string, string> = {
     pendiente: "bg-yellow-500 text-white",
-    aprobado: "bg-green-600 text-white dark:bg-green-600",
-    rechazado: "bg-red-600 text-white dark:bg-red-600",
+    aprobado: "bg-green-600 text-white",
+    rechazado: "bg-red-600 text-white",
   };
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-bold ${colors[estado] || "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}>
+    <span className={`px-3 py-1 rounded-full text-xs font-bold ${colors[estado] || (modoOscuro ? "bg-slate-700 text-slate-300" : "bg-slate-200 text-slate-600")}`}>
       {estado}
     </span>
   );
@@ -587,8 +587,8 @@ return (
               {carrito.map(p => (
                 <div key={p.id} className={`${bgCard} p-3 sm:p-4 rounded-2xl mb-3 flex items-center gap-3 sm:gap-4 shadow-sm hover:shadow-md transition-all duration-200`}>
                   <div className="flex-1">
-                    <div className="font-bold text-sm sm:text-base text-violet-700 dark:text-violet-300">{p.nombre}</div>
-                    <div className="text-violet-600 dark:text-violet-400 font-semibold text-sm sm:text-base">{fmtCOP(p.precio * p.cantidad)}</div>
+                    <div className={`font-bold text-sm sm:text-base ${modoOscuro ? "text-violet-300" : "text-violet-700"}`}>{p.nombre}</div>
+                    <div className={`font-semibold text-sm sm:text-base ${modoOscuro ? "text-violet-400" : "text-violet-600"}`}>{fmtCOP(p.precio * p.cantidad)}</div>
                     <div className="text-xs text-slate-500">{fmtCOP(p.precio)} c/u</div>
                   </div>
                   <div className={`flex items-center gap-2 sm:gap-3 ${bgCantidad} rounded-full px-1 py-1`}>
@@ -626,7 +626,7 @@ return (
                     className={`p-4 rounded-xl text-center transition-all min-h-[80px] ${
                       tipoEntrega === "domicilio"
                         ? "bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-xl shadow-violet-500/30"
-                        : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:border-violet-400 border-2 border-transparent"
+                        : `${modoOscuro ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-700"} hover:border-violet-400 border-2 border-transparent`
                     }`}
                   >
                     <div className="text-2xl mb-1">🏍️</div>
@@ -638,7 +638,7 @@ return (
                     className={`p-4 rounded-xl text-center transition-all min-h-[80px] ${
                       tipoEntrega === "recoger"
                         ? "bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-xl shadow-violet-500/30"
-                        : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:border-violet-400 border-2 border-transparent"
+                        : `${modoOscuro ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-700"} hover:border-violet-400 border-2 border-transparent`
                     }`}
                   >
                     <div className="text-2xl mb-1">🏪</div>
@@ -647,15 +647,15 @@ return (
                   </button>
                 </div>
                 {tipoEntrega === "domicilio" && (
-                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl">
-                    <div className="text-xs text-blue-700 dark:text-blue-300 font-semibold mb-1">Dirección de entrega:</div>
-                    <div className="text-sm text-blue-600 dark:text-blue-400">{perfil?.direccion || "No registrada - Edítala en Mi Cuenta"}</div>
+                  <div className={`mt-3 p-3 rounded-xl border ${modoOscuro ? "bg-blue-900/30 border-blue-700" : "bg-blue-50 border-blue-200"}`}>
+                    <div className={`text-xs font-semibold mb-1 ${modoOscuro ? "text-blue-300" : "text-blue-700"}`}>Dirección de entrega:</div>
+                    <div className={`text-sm ${modoOscuro ? "text-blue-400" : "text-blue-600"}`}>{perfil?.direccion || "No registrada - Edítala en Mi Cuenta"}</div>
                   </div>
                 )}
                 {tipoEntrega === "recoger" && (
-                  <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl">
-                    <div className="text-xs text-green-700 dark:text-green-300 font-semibold mb-1">Recoger en:</div>
-                    <div className="text-sm text-green-600 dark:text-green-400">📍 {farmaciasList.find(f => f.id === farmaciaElegida)?.direccion || "Farmacia seleccionada"}</div>
+                  <div className={`mt-3 p-3 rounded-xl border ${modoOscuro ? "bg-green-900/30 border-green-700" : "bg-green-50 border-green-200"}`}>
+                    <div className={`text-xs font-semibold mb-1 ${modoOscuro ? "text-green-300" : "text-green-700"}`}>Recoger en:</div>
+                    <div className={`text-sm ${modoOscuro ? "text-green-400" : "text-green-600"}`}>📍 {farmaciasList.find(f => f.id === farmaciaElegida)?.direccion || "Farmacia seleccionada"}</div>
                   </div>
                 )}
               </div>
@@ -704,7 +704,7 @@ return (
                       <div className="text-right">
                         <div className="font-bold text-violet-600 text-sm sm:text-base">{fmtCOP(pedido.total)}</div>
                         {pedido.codigo_verificacion && pedido.estado !== "entregado" && pedido.estado !== "cancelado" && (
-                          <div className="text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-2 py-1 rounded-lg font-bold mt-1">
+                          <div className={`text-xs px-2 py-1 rounded-lg font-bold mt-1 ${modoOscuro ? "bg-violet-900/40 text-violet-300" : "bg-violet-100 text-violet-700"}`}>
                             {pedido.codigo_verificacion}
                           </div>
                         )}
@@ -732,7 +732,7 @@ return (
                     <div className="font-bold">{f.productos?.nombre}</div>
                     <div className="text-slate-500 text-xs">{fmtFecha(f.created_at)}</div>
                   </div>
-                  <Badge estado={f.estado} />
+                  <Badge estado={f.estado} modoOscuro={modoOscuro} />
                 </div>
                 {f.observacion && (
                   <div className={`mt-3 p-3 rounded-lg text-sm ${
@@ -745,7 +745,7 @@ return (
                   </div>
                 )}
                 {f.estado === "pendiente" && (
-                  <div className="mt-2 text-sm text-yellow-600 dark:text-yellow-400 flex items-center gap-2">
+                  <div className={`mt-2 text-sm flex items-center gap-2 ${modoOscuro ? "text-yellow-400" : "text-yellow-600"}`}>
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
                     En revisión por el farmacéutico
                   </div>
@@ -831,52 +831,52 @@ return (
             </div>
 
             {metodoPago === "tarjeta" && (
-              <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8 bg-slate-50 dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+              <div className={`space-y-3 sm:space-y-4 mb-6 sm:mb-8 p-4 sm:p-5 rounded-2xl border-2 ${modoOscuro ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-100"}`}>
                 <div className="relative">
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">Número de tarjeta</label>
-                  <input placeholder="1234 5678 9012 3456" value={datosPago.numeroTarjeta} onChange={e => setDatosPago(d => ({ ...d, numeroTarjeta: e.target.value }))} className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-base" />
+                  <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>Número de tarjeta</label>
+                  <input placeholder="1234 5678 9012 3456" value={datosPago.numeroTarjeta} onChange={e => setDatosPago(d => ({ ...d, numeroTarjeta: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`} />
                   <span className="absolute right-4 top-9 text-slate-400">💳</span>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">Nombre del titular</label>
-                  <input placeholder="Como aparece en la tarjeta" value={datosPago.nombreTitular} onChange={e => setDatosPago(d => ({ ...d, nombreTitular: e.target.value }))} className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-base" />
+                  <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>Nombre del titular</label>
+                  <input placeholder="Como aparece en la tarjeta" value={datosPago.nombreTitular} onChange={e => setDatosPago(d => ({ ...d, nombreTitular: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`} />
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">Vencimiento</label>
-                    <input placeholder="MM/AA" value={datosPago.expiry} onChange={e => setDatosPago(d => ({ ...d, expiry: e.target.value }))} className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-base" />
+                    <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>Vencimiento</label>
+                    <input placeholder="MM/AA" value={datosPago.expiry} onChange={e => setDatosPago(d => ({ ...d, expiry: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`} />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">CVV</label>
-                    <input placeholder="•••" type="password" value={datosPago.cvv} onChange={e => setDatosPago(d => ({ ...d, cvv: e.target.value }))} className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-600 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-base" />
+                    <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>CVV</label>
+                    <input placeholder="•••" type="password" value={datosPago.cvv} onChange={e => setDatosPago(d => ({ ...d, cvv: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`} />
                   </div>
                 </div>
               </div>
             )}
 
             {metodoPago === "nequi" && (
-              <div className="mb-6 sm:mb-8 bg-slate-50 dark:bg-slate-800 p-4 sm:p-5 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
-                <label className="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1 block">Número de celular Nequi</label>
-                <input placeholder="300 123 4567" value={datosPago.numeroCelular} onChange={e => setDatosPago(d => ({ ...d, numeroCelular: e.target.value }))} className={`w-full px-4 py-3 border-2 ${modoOscuro ? "bg-slate-700 border-slate-600 text-white" : "bg-white border-slate-200 text-slate-800"} rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base`} />
+              <div className={`mb-6 sm:mb-8 p-4 sm:p-5 rounded-2xl border-2 ${modoOscuro ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-100"}`}>
+                <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>Número de celular Nequi</label>
+                <input placeholder="300 123 4567" value={datosPago.numeroCelular} onChange={e => setDatosPago(d => ({ ...d, numeroCelular: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "bg-slate-700 border-slate-600 text-white" : "bg-white border-slate-200 text-slate-800"}`} />
               </div>
             )}
 
             {metodoPago === "efectivo" && (
-              <div className="mb-6 sm:mb-8 p-4 sm:p-6 bg-gradient-to-r from-yellow-50 to-amber-50 dark:from-yellow-900/30 dark:to-amber-900/30 border-2 border-yellow-200 dark:border-yellow-700 rounded-2xl">
+              <div className={`mb-6 sm:mb-8 p-4 sm:p-6 rounded-2xl border-2 ${modoOscuro ? "bg-yellow-900/30 border-yellow-700" : "bg-gradient-to-r from-yellow-50 to-amber-50 border-yellow-200"}`}>
                 <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-yellow-200 dark:bg-yellow-700 flex items-center justify-center text-2xl sm:text-3xl">💵</div>
+                  <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-2xl sm:text-3xl ${modoOscuro ? "bg-yellow-700" : "bg-yellow-200"}`}>💵</div>
                   <div>
-                    <div className="text-yellow-800 dark:text-yellow-300 font-bold text-base sm:text-lg">Pago en efectivo</div>
-                    <div className="text-yellow-600 dark:text-yellow-400 text-xs sm:text-sm mt-1">{tipoEntrega === "domicilio" ? "Paga cuando recibas tu pedido en tu domicilio." : "Paga cuando recojas tu pedido en tienda."}</div>
+                    <div className={`font-bold text-base sm:text-lg ${modoOscuro ? "text-yellow-300" : "text-yellow-800"}`}>Pago en efectivo</div>
+                    <div className={`text-xs sm:text-sm mt-1 ${modoOscuro ? "text-yellow-400" : "text-yellow-600"}`}>{tipoEntrega === "domicilio" ? "Paga cuando recibas tu pedido en tu domicilio." : "Paga cuando recojas tu pedido en tienda."}</div>
                   </div>
                 </div>
               </div>
             )}
 
-            <div className="mb-6 sm:mb-8 p-4 sm:p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+            <div className={`mb-6 sm:mb-8 p-4 sm:p-5 rounded-2xl border-2 ${modoOscuro ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-100"}`}>
               <div className="flex justify-between text-sm mb-2"><span>Subtotal</span><span>{fmtCOP(subtotal)}</span></div>
               <div className="flex justify-between text-sm mb-2"><span>Domicilio</span><span>{fmtCOP(costoDom)}</span></div>
-              <div className="flex justify-between font-bold text-lg border-t border-slate-200 dark:border-slate-600 pt-2"><span>Total</span><span>{fmtCOP(totalConDom)}</span></div>
+              <div className={`flex justify-between font-bold text-lg border-t pt-2 ${modoOscuro ? "border-slate-600" : "border-slate-200"}`}><span>Total</span><span>{fmtCOP(totalConDom)}</span></div>
               <div className="flex justify-between text-xs text-slate-500 mt-1"><span>Entrega</span><span>{tipoEntrega === "domicilio" ? "🏍️ A domicilio" : "🏪 Recoger en tienda"}</span></div>
             </div>
 
@@ -895,7 +895,7 @@ return (
           <div className={`${bgCard} rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto scrollbar-hide`} onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg sm:text-xl font-bold text-violet-600">Pedido #{pedidoSeleccionado.id}</h2>
-              <button onClick={() => setPedidoSeleccionado(null)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-600">✕</button>
+              <button onClick={() => setPedidoSeleccionado(null)} className={`w-8 h-8 rounded-full flex items-center justify-center text-slate-500 hover:text-slate-700 transition-all ${modoOscuro ? "bg-slate-700 hover:bg-slate-600" : "bg-slate-100 hover:bg-slate-200"}`}>✕</button>
             </div>
 
             <div className="space-y-3 mb-4">
@@ -904,14 +904,14 @@ return (
               <div className="flex justify-between text-sm"><span className="text-slate-500">Farmacia</span><span className="font-bold">{pedidoSeleccionado.pharmacies?.nombre || "N/A"}</span></div>
               <div className="flex justify-between text-sm"><span className="text-slate-500">Dirección</span><span className="font-bold">{tipoEntrega === "recoger" ? (farmaciasList.find(f => f.id === farmaciaElegida)?.direccion || perfil?.direccion) : (perfil?.direccion || "No registrada")}</span></div>
               {pedidoSeleccionado.codigo_verificacion && pedidoSeleccionado.estado !== "entregado" && pedidoSeleccionado.estado !== "cancelado" && (
-                <div className="text-center py-3 bg-violet-100 dark:bg-violet-900/40 rounded-xl">
-                  <div className="text-xs text-violet-500 font-semibold">Código de entrega</div>
-                  <div className="text-3xl font-bold text-violet-700 dark:text-violet-300">{pedidoSeleccionado.codigo_verificacion}</div>
+                <div className={`text-center py-3 rounded-xl ${modoOscuro ? "bg-violet-900/40" : "bg-violet-100"}`}>
+                  <div className={`text-xs font-semibold ${modoOscuro ? "text-violet-300" : "text-violet-600"}`}>Código de entrega</div>
+                  <div className={`text-3xl font-bold ${modoOscuro ? "text-violet-300" : "text-violet-700"}`}>{pedidoSeleccionado.codigo_verificacion}</div>
                 </div>
               )}
             </div>
 
-            <div className="border-t border-slate-200 dark:border-slate-600 pt-3 mb-4">
+            <div className={`border-t pt-3 mb-4 ${modoOscuro ? "border-slate-600" : "border-slate-200"}`}>
               <div className="font-bold text-sm mb-2">Productos</div>
               {pedidoSeleccionado.pedido_productos?.map((item: any, i: number) => (
                 <div key={i} className="flex justify-between text-sm py-1.5">
@@ -921,7 +921,7 @@ return (
               ))}
             </div>
 
-            <div className="border-t border-slate-200 dark:border-slate-600 pt-3">
+            <div className={`border-t pt-3 ${modoOscuro ? "border-slate-600" : "border-slate-200"}`}>
               <div className="flex justify-between text-sm"><span>Domicilio</span><span>{fmtCOP(pedidoSeleccionado.costo_domicilio || 0)}</span></div>
               <div className="flex justify-between font-bold text-lg mt-1"><span>Total</span><span className="text-violet-600">{fmtCOP(pedidoSeleccionado.total)}</span></div>
             </div>
@@ -934,10 +934,10 @@ return (
           <div className={`${bgCard} rounded-2xl p-6 max-w-sm text-center`}>
             <h2 className="text-xl font-bold mb-2">✅ Pedido Confirmado</h2>
             <p className="text-slate-500 mb-4">Tu código de entrega es:</p>
-            <div className="text-4xl font-bold text-green-600 mb-4 bg-green-50 py-4 rounded-xl">{codigoEntrega}</div>
-            <p className="text-xs text-slate-500 mb-4">Compártelo con el domiciliario cuando llegue tu pedido</p>
+            <div className={`text-4xl font-bold mb-4 py-4 rounded-xl ${modoOscuro ? "text-green-400 bg-green-900/40" : "text-green-600 bg-green-50"}`}>{codigoEntrega}</div>
+            <p className="text-slate-500 text-xs mb-4">Compártelo con el domiciliario cuando llegue tu pedido</p>
             <button 
-              className="w-full bg-green-600 text-white py-2 rounded-lg font-bold"
+              className="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700 transition-all"
               onClick={() => setCodigoEntrega("")}
             >
               Entendido
