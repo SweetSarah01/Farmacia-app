@@ -3,7 +3,7 @@ FROM node:22-slim AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 COPY . .
 RUN npm run build
@@ -14,12 +14,9 @@ WORKDIR /app
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./
-
-RUN npm pkg set scripts.start="node server.js"
-
 COPY server.js ./
 
-RUN npm install --omit=dev
+RUN npm install --omit=dev --ignore-scripts
 
 EXPOSE 8080
 
