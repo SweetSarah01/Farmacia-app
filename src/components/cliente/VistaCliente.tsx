@@ -339,7 +339,6 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
       costo_domicilio: costoDom, 
       entregado: false,
       metodo_pago: metodoPago,
-      tipo_entrega: tipoEntrega,
       codigo_verificacion: codigoVerificacion,
     }).select().single();
     
