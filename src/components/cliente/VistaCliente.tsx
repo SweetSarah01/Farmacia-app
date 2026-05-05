@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../supabaseClient";
 import { Toast, useToast } from "../common/Toast";
 import { useTheme } from "../../App";
+import { estadoLabel } from "../../supabaseClient";
 
 const COSTO_DOMICILIO = 3000;
 
@@ -55,6 +56,7 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
   const [procesandoPago, setProcesandoPago] = useState(false);
   const [domiciliariosActivos, setDomiciliariosActivos] = useState(0);
   const [codigoEntrega, setCodigoEntrega] = useState("");
+  const [pedidoSeleccionado, setPedidoSeleccionado] = useState<any>(null);
   const [editando, setEditando] = useState(false);
   const [datosEditados, setDatosEditados] = useState({ telefono: "", direccion: "", ciudad: "", barrio: "", fecha_nacimiento: "" });
   const [subiendoFoto, setSubiendoFoto] = useState(false);
@@ -143,7 +145,7 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
   const cargarMisPedidos = useCallback(() => {
     setCargandoPedidos(true);
     supabase.from("pedidos")
-      .select("*, pedido_productos(*, productos(nombre))")
+      .select("*, pedido_productos(*, productos(nombre)), pharmacies(nombre)")
       .eq("cliente_id", perfil.id)
       .order("created_at", { ascending: false })
       .limit(20)
@@ -157,6 +159,14 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
     if (seccion === "pedidos") cargarMisPedidos(); 
     if (seccion === "catalogo") cargarFormulas();
   }, [seccion, cargarMisPedidos, cargarFormulas]);
+
+  useEffect(() => {
+    if (seccion !== "pedidos" || !perfil?.id) return;
+    const channel = supabase.channel("pedidos-realtime")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "pedidos", filter: `cliente_id=eq.${perfil.id}` }, () => cargarMisPedidos())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [seccion, perfil?.id, cargarMisPedidos]);
 
   const agregarCarrito = (producto: any) => {
     const formulasProducto = formulas.filter(f => f.producto_id === producto.id);
@@ -665,25 +675,44 @@ return (
             <div className="text-center py-12 text-slate-500">No hay pedidos</div>
           ) : (
             <div className="space-y-3 sm:space-y-4">
-               {misPedidos.map(pedido => (
-                <div key={pedido.id} className={`${bgCard} p-3 sm:p-4 rounded-xl`}>
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <div className="font-bold text-sm sm:text-base">#{pedido.id} - {pedido.pedido_productos?.[0]?.productos?.nombre}</div>
-                      <div className="text-slate-500 text-xs sm:text-sm">{fmtFecha(pedido.created_at)}</div>
-                    </div>
-                    <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold ${pedido.estado === "entregado" ? "bg-green-600 text-white" : "bg-yellow-500 text-white"}`}>{pedido.estado}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <div className="font-bold text-violet-600 text-sm sm:text-base">{fmtCOP(pedido.total)}</div>
-                    {pedido.codigo_verificacion && pedido.estado !== "entregado" && (
-                      <div className="text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-3 py-1.5 rounded-lg font-bold">
-                        Código: {pedido.codigo_verificacion}
+              {misPedidos.map(pedido => {
+                const estadoColors: Record<string, string> = {
+                  pendiente: "bg-yellow-500",
+                  en_preparacion: "bg-blue-500",
+                  listo: "bg-orange-500",
+                  en_camino: "bg-violet-600",
+                  entregado: "bg-green-600",
+                  cancelado: "bg-red-600",
+                };
+                return (
+                  <div
+                    key={pedido.id}
+                    onClick={() => setPedidoSeleccionado(pedido)}
+                    className={`${bgCard} p-3 sm:p-4 rounded-xl cursor-pointer hover:shadow-lg transition-all`}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-bold text-sm sm:text-base">#{pedido.id}</span>
+                          <span className={`px-2 sm:px-3 py-0.5 rounded-full text-xs font-bold text-white ${estadoColors[pedido.estado] || "bg-slate-500"}`}>
+                            {estadoLabel[pedido.estado] || pedido.estado}
+                          </span>
+                        </div>
+                        <div className="text-slate-500 text-xs sm:text-sm">{pedido.pharmacies?.nombre || "Farmacia"}</div>
+                        <div className="text-slate-400 text-xs">{fmtFecha(pedido.created_at)}</div>
                       </div>
-                    )}
+                      <div className="text-right">
+                        <div className="font-bold text-violet-600 text-sm sm:text-base">{fmtCOP(pedido.total)}</div>
+                        {pedido.codigo_verificacion && pedido.estado !== "entregado" && pedido.estado !== "cancelado" && (
+                          <div className="text-xs bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 px-2 py-1 rounded-lg font-bold mt-1">
+                            {pedido.codigo_verificacion}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -856,6 +885,45 @@ return (
               <button className={`flex-1 text-white py-3 sm:py-4 rounded-xl font-bold transition-all duration-300 min-h-[48px] ${procesandoPago ? "bg-slate-400" : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 shadow-xl shadow-green-500/40 hover:shadow-green-500/60 hover:scale-[1.02]"}`} onClick={realizarPedido} disabled={procesandoPago}>
                 {procesandoPago ? "Procesando..." : "Confirmar"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pedidoSeleccionado && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setPedidoSeleccionado(null)}>
+          <div className={`${bgCard} rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto scrollbar-hide`} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg sm:text-xl font-bold text-violet-600">Pedido #{pedidoSeleccionado.id}</h2>
+              <button onClick={() => setPedidoSeleccionado(null)} className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-600">✕</button>
+            </div>
+
+            <div className="space-y-3 mb-4">
+              <div className="flex justify-between text-sm"><span className="text-slate-500">Estado</span><span className="font-bold">{estadoLabel[pedidoSeleccionado.estado] || pedidoSeleccionado.estado}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-slate-500">Fecha</span><span className="font-bold">{fmtFecha(pedidoSeleccionado.created_at)}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-slate-500">Farmacia</span><span className="font-bold">{pedidoSeleccionado.pharmacies?.nombre || "N/A"}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-slate-500">Dirección</span><span className="font-bold">{tipoEntrega === "recoger" ? (farmaciasList.find(f => f.id === farmaciaElegida)?.direccion || perfil?.direccion) : (perfil?.direccion || "No registrada")}</span></div>
+              {pedidoSeleccionado.codigo_verificacion && pedidoSeleccionado.estado !== "entregado" && pedidoSeleccionado.estado !== "cancelado" && (
+                <div className="text-center py-3 bg-violet-100 dark:bg-violet-900/40 rounded-xl">
+                  <div className="text-xs text-violet-500 font-semibold">Código de entrega</div>
+                  <div className="text-3xl font-bold text-violet-700 dark:text-violet-300">{pedidoSeleccionado.codigo_verificacion}</div>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-slate-200 dark:border-slate-600 pt-3 mb-4">
+              <div className="font-bold text-sm mb-2">Productos</div>
+              {pedidoSeleccionado.pedido_productos?.map((item: any, i: number) => (
+                <div key={i} className="flex justify-between text-sm py-1.5">
+                  <span>{item.productos?.nombre} x{item.cantidad}</span>
+                  <span className="font-bold">{fmtCOP(item.precio_unitario * item.cantidad)}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-slate-200 dark:border-slate-600 pt-3">
+              <div className="flex justify-between text-sm"><span>Domicilio</span><span>{fmtCOP(pedidoSeleccionado.costo_domicilio || 0)}</span></div>
+              <div className="flex justify-between font-bold text-lg mt-1"><span>Total</span><span className="text-violet-600">{fmtCOP(pedidoSeleccionado.total)}</span></div>
             </div>
           </div>
         </div>
