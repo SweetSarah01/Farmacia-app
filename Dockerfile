@@ -1,14 +1,14 @@
-FROM node:22-slim
-
+FROM node:22-slim AS builder
 WORKDIR /app
-
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts
-
+RUN npm ci
 COPY . .
+RUN npm run build
 
-ENV PORT=8080
-
+FROM node:22-slim
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY server.js ./
 EXPOSE 8080
-
-CMD ["sh", "-c", "npm run build && node server.js"]
+ENV PORT=8080
+CMD ["node", "server.js"]

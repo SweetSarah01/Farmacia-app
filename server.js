@@ -5,7 +5,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.join(__dirname, 'dist');
-const PORT = parseInt(process.env.PORT || '3000', 10);
+const PORT = parseInt(process.env.PORT || '8080', 10);
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
 
 const MIME = {
   '.html': 'text/html',
@@ -29,10 +32,11 @@ const server = http.createServer((req, res) => {
 
   let filePath = path.join(distDir, req.url === '/' ? 'index.html' : req.url);
   const ext = path.extname(filePath);
-  const contentType = MIME[ext] || 'application/octet-stream';
+  let contentType = MIME[ext] || 'application/octet-stream';
 
   if (!fs.existsSync(filePath)) {
     filePath = path.join(distDir, 'index.html');
+    contentType = 'text/html';
   }
 
   fs.readFile(filePath, (err, data) => {
@@ -41,8 +45,21 @@ const server = http.createServer((req, res) => {
       res.end('Server Error');
       return;
     }
+
+    let body = data.toString();
+
+    if (filePath.endsWith('index.html')) {
+      const envScript = `<script>
+        window.__ENV__ = {
+          VITE_SUPABASE_URL: "${SUPABASE_URL}",
+          VITE_SUPABASE_ANON_KEY: "${SUPABASE_ANON_KEY}"
+        };
+      </script>`;
+      body = body.replace('</head>', envScript + '</head>');
+    }
+
     res.writeHead(200, { 'Content-Type': contentType });
-    res.end(data);
+    res.end(body);
   });
 });
 
