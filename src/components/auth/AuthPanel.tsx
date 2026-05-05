@@ -97,7 +97,8 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Email o Usuario</label>
               <input
                 type="text"
-                name="username"
+                id="email"
+                name="email"
                 placeholder=""
                 value={form.email}
                 onChange={e => upd("email", e.target.value)}
@@ -110,6 +111,7 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Contraseña</label>
               <input
                 type={mostrarPassword ? "text" : "password"}
+                id="password"
                 name="password"
                 placeholder=""
                 value={form.password}
@@ -138,6 +140,7 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Nombre completo *</label>
               <input
                 type="text"
+                id="nombre"
                 name="nombre"
                 placeholder=""
                 value={form.nombre}
@@ -151,6 +154,7 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Documento de identidad *</label>
               <input
                 type="text"
+                id="documento"
                 name="documento"
                 placeholder=""
                 value={form.documento}
@@ -164,6 +168,7 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Correo electrónico *</label>
               <input
                 type="email"
+                id="email-reg"
                 name="email"
                 placeholder=""
                 value={form.email}
@@ -177,6 +182,7 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Contraseña *</label>
               <input
                 type={mostrarPasswordReg ? "text" : "password"}
+                id="password-reg"
                 name="password"
                 placeholder=""
                 value={form.password}
@@ -197,6 +203,7 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Teléfono</label>
               <input
                 type="text"
+                id="telefono-reg"
                 name="telefono"
                 placeholder=""
                 value={form.telefono}
@@ -210,6 +217,7 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Ciudad</label>
               <input
                 type="text"
+                id="ciudad-reg"
                 name="ciudad"
                 placeholder=""
                 value={form.ciudad}
@@ -223,6 +231,7 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Dirección</label>
               <input
                 type="text"
+                id="direccion-reg"
                 name="direccion"
                 placeholder=""
                 value={form.direccion}
