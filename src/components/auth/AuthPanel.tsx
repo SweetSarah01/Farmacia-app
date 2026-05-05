@@ -11,6 +11,8 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
   const [form, setForm] = useState({ nombre: "", email: "", password: "", documento: "", direccion: "", telefono: "", ciudad: "" });
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  const [mostrarPassword, setMostrarPassword] = useState(false);
+  const [mostrarPasswordReg, setMostrarPasswordReg] = useState(false);
 
   const handleLogin = async () => {
     if (!form.email || !form.password) { setError("Completa todos los campos"); return; }
@@ -107,15 +109,24 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
 
             <div className="mt-3">
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Contraseña</label>
-              <input
-                type="password"
-                name="password"
-                placeholder=""
-                value={form.password}
-                onChange={e => upd("password", e.target.value)}
-                className={`w-full px-3 py-2 rounded-md border outline-0 ${bgInput}`}
-                style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
-              />
+              <div className="relative">
+                <input
+                  type={mostrarPassword ? "text" : "password"}
+                  name="password"
+                  placeholder=""
+                  value={form.password}
+                  onChange={e => upd("password", e.target.value)}
+                  className={`w-full px-3 py-2 rounded-md border outline-0 ${bgInput}`}
+                  style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarPassword(!mostrarPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                >
+                  {mostrarPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
             </div>
 
             {error && <div className="mt-4 p-2 rounded bg-red-900/50 text-red-400 text-sm">{error}</div>}
@@ -167,15 +178,24 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
 
             <div className="mt-3">
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Contraseña *</label>
-              <input
-                type="password"
-                name="password"
-                placeholder=""
-                value={form.password}
-                onChange={e => upd("password", e.target.value)}
-                className={`w-full px-3 py-2 rounded-md border outline-0 ${bgInput}`}
-                style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
-              />
+              <div className="relative">
+                <input
+                  type={mostrarPasswordReg ? "text" : "password"}
+                  name="password"
+                  placeholder=""
+                  value={form.password}
+                  onChange={e => upd("password", e.target.value)}
+                  className={`w-full px-3 py-2 rounded-md border outline-0 ${bgInput}`}
+                  style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarPasswordReg(!mostrarPasswordReg)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700"
+                >
+                  {mostrarPasswordReg ? "🙈" : "👁️"}
+                </button>
+              </div>
             </div>
 
             <div className="mt-3">
