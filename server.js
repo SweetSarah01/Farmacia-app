@@ -21,6 +21,12 @@ const MIME = {
 };
 
 const server = http.createServer((req, res) => {
+  if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('OK');
+    return;
+  }
+
   let filePath = path.join(distDir, req.url === '/' ? 'index.html' : req.url);
   const ext = path.extname(filePath);
   const contentType = MIME[ext] || 'application/octet-stream';
@@ -40,6 +46,6 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
