@@ -1,4 +1,4 @@
-FROM node:22-slim AS build
+FROM node:22-slim
 
 WORKDIR /app
 
@@ -6,20 +6,9 @@ COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 
 COPY . .
-RUN npm run build
 
-FROM node:22-slim
-
-WORKDIR /app
-
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/package.json ./
-COPY --from=build /app/package-lock.json ./
-COPY server.js ./
-
-RUN npm install --omit=dev --ignore-scripts
+ENV PORT=8080
 
 EXPOSE 8080
 
-ENV PORT=8080
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "npm run build && node server.js"]
