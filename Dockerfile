@@ -14,6 +14,7 @@ WORKDIR /app
 
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/package.json ./
+COPY --from=build /app/package-lock.json ./
 COPY server.js ./
 
 RUN npm install --omit=dev --ignore-scripts
