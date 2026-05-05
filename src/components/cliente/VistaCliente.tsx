@@ -51,6 +51,7 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
   const [metodoPago, setMetodoPago] = useState("");
   const [datosPago, setDatosPago] = useState({ numeroTarjeta: "", nombreTitular: "", expiry: "", cvv: "", numeroCelular: "" });
   const [mostrarPago, setMostrarPago] = useState(false);
+  const [tipoEntrega, setTipoEntrega] = useState<"domicilio" | "recoger">("domicilio");
   const [procesandoPago, setProcesandoPago] = useState(false);
   const [domiciliariosActivos, setDomiciliariosActivos] = useState(0);
   const [codigoEntrega, setCodigoEntrega] = useState("");
@@ -61,7 +62,8 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
   
   const subtotal = carrito.reduce((a, i) => a + i.precio * i.cantidad, 0);
   const totalCarrito = carrito.reduce((a, i) => a + i.cantidad, 0);
-  const totalConDom = subtotal + COSTO_DOMICILIO;
+  const costoDom = tipoEntrega === "domicilio" ? COSTO_DOMICILIO : 0;
+  const totalConDom = subtotal + costoDom;
 
   const [todosProductos, setTodosProductos] = useState<any[]>([]);
   const [farmaciaElegida, setFarmaciaElegida] = useState<number | null>(null);
@@ -233,6 +235,7 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
   const abrirPago = () => {
     if (carrito.length === 0) return;
     if (!perfil?.id) { show("Error: usuario no identificado", "error"); return; }
+    setTipoEntrega("domicilio");
     setMostrarPago(true);
   };
 
@@ -329,9 +332,10 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
       pharmacy_id: carrito[0]?.pharmacy_id || null,
       estado: "pendiente", 
       total: totalConDom, 
-      costo_domicilio: COSTO_DOMICILIO, 
+      costo_domicilio: costoDom, 
       entregado: false,
       metodo_pago: metodoPago,
+      tipo_entrega: tipoEntrega,
       codigo_verificacion: codigoVerificacion,
     }).select().single();
     
@@ -597,8 +601,50 @@ return (
               )}
               <div className={`${bgCard} p-4 rounded-xl mb-4`}>
                 <div className="flex justify-between mb-2"><span>Subtotal</span><span>{fmtCOP(subtotal)}</span></div>
-                <div className="flex justify-between mb-2"><span>Domicilio</span><span>{fmtCOP(COSTO_DOMICILIO)}</span></div>
+                <div className="flex justify-between mb-2"><span>Domicilio</span><span>{fmtCOP(costoDom)}</span></div>
                 <div className="flex justify-between font-bold text-lg"><span>Total</span><span>{fmtCOP(totalConDom)}</span></div>
+              </div>
+              
+              <div className={`${bgCard} p-4 rounded-xl mb-4`}>
+                <div className="font-bold text-sm mb-3">Tipo de entrega</div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setTipoEntrega("domicilio")}
+                    className={`p-4 rounded-xl text-center transition-all min-h-[80px] ${
+                      tipoEntrega === "domicilio"
+                        ? "bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-xl shadow-violet-500/30"
+                        : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:border-violet-400 border-2 border-transparent"
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">🏍️</div>
+                    <div className="font-bold text-sm">A domicilio</div>
+                    <div className="text-xs opacity-80">+{fmtCOP(COSTO_DOMICILIO)}</div>
+                  </button>
+                  <button
+                    onClick={() => setTipoEntrega("recoger")}
+                    className={`p-4 rounded-xl text-center transition-all min-h-[80px] ${
+                      tipoEntrega === "recoger"
+                        ? "bg-gradient-to-r from-violet-500 to-violet-600 text-white shadow-xl shadow-violet-500/30"
+                        : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:border-violet-400 border-2 border-transparent"
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">🏪</div>
+                    <div className="font-bold text-sm">Recoger en tienda</div>
+                    <div className="text-xs opacity-80">Gratis</div>
+                  </button>
+                </div>
+                {tipoEntrega === "domicilio" && (
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-xl">
+                    <div className="text-xs text-blue-700 dark:text-blue-300 font-semibold mb-1">Dirección de entrega:</div>
+                    <div className="text-sm text-blue-600 dark:text-blue-400">{perfil?.direccion || "No registrada - Edítala en Mi Cuenta"}</div>
+                  </div>
+                )}
+                {tipoEntrega === "recoger" && (
+                  <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-700 rounded-xl">
+                    <div className="text-xs text-green-700 dark:text-green-300 font-semibold mb-1">Recoger en:</div>
+                    <div className="text-sm text-green-600 dark:text-green-400">📍 {farmaciasList.find(f => f.id === farmaciaElegida)?.direccion || "Farmacia seleccionada"}</div>
+                  </div>
+                )}
               </div>
               
               {carrito.length > 0 && (
@@ -782,11 +828,18 @@ return (
                   <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-yellow-200 dark:bg-yellow-700 flex items-center justify-center text-2xl sm:text-3xl">💵</div>
                   <div>
                     <div className="text-yellow-800 dark:text-yellow-300 font-bold text-base sm:text-lg">Pago en efectivo</div>
-                    <div className="text-yellow-600 dark:text-yellow-400 text-xs sm:text-sm mt-1">Paga cuando recibas tu pedido en tu domicilio.</div>
+                    <div className="text-yellow-600 dark:text-yellow-400 text-xs sm:text-sm mt-1">{tipoEntrega === "domicilio" ? "Paga cuando recibas tu pedido en tu domicilio." : "Paga cuando recojas tu pedido en tienda."}</div>
                   </div>
                 </div>
               </div>
             )}
+
+            <div className="mb-6 sm:mb-8 p-4 sm:p-5 bg-slate-50 dark:bg-slate-800 rounded-2xl border-2 border-slate-100 dark:border-slate-700">
+              <div className="flex justify-between text-sm mb-2"><span>Subtotal</span><span>{fmtCOP(subtotal)}</span></div>
+              <div className="flex justify-between text-sm mb-2"><span>Domicilio</span><span>{fmtCOP(costoDom)}</span></div>
+              <div className="flex justify-between font-bold text-lg border-t border-slate-200 dark:border-slate-600 pt-2"><span>Total</span><span>{fmtCOP(totalConDom)}</span></div>
+              <div className="flex justify-between text-xs text-slate-500 mt-1"><span>Entrega</span><span>{tipoEntrega === "domicilio" ? "🏍️ A domicilio" : "🏪 Recoger en tienda"}</span></div>
+            </div>
 
             <div className="flex gap-2 sm:gap-3">
               <button className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 sm:py-4 rounded-xl font-bold transition-all duration-300 hover:scale-[1.02] min-h-[48px]" onClick={() => { setMostrarPago(false); setMetodoPago(""); }}>Cancelar</button>
