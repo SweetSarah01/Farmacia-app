@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../supabaseClient";
 import { Toast, useToast } from "../common/Toast";
 import { useTheme } from "../../App";
+import { estadoLabel } from "../../supabaseClient";
 
 function fmtCOP(price: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(price);
@@ -56,6 +57,7 @@ export default function AdminPharmacyPanel({ perfil, cerrarSesion, seccion, setS
   const [nuevoUsuario, setNuevoUsuario] = useState({ email: "", nombre: "", telefono: "", rol: "domiciliario" });
   const [rolesSeleccionados, setRolesSeleccionados] = useState<Record<string, string>>({} as Record<string, string>);
   const [creandoUsuario, setCreandoUsuario] = useState(false);
+  const [pedidoSeleccionado, setPedidoSeleccionado] = useState<any>(null);
 
   const crearUsuario = async (userId?: string, rol?: string) => {
     if (!userId) {
@@ -160,7 +162,7 @@ export default function AdminPharmacyPanel({ perfil, cerrarSesion, seccion, setS
     
     // Cargar pedidos de esta pharmacy
     console.log("Cargando pedidos con pharmacy_id:", perfil.pharmacy_id);
-    const { data: peds, error: pedsError } = await supabase.from("pedidos").select("*, pedido_productos(*, productos(nombre))").eq("pharmacy_id", perfil.pharmacy_id).order("created_at", { ascending: false });
+    const { data: peds, error: pedsError } = await supabase.from("pedidos").select("*, pedido_productos(*, productos(nombre)), profiles:cliente_id(nombre, telefono, direccion, barrio, ciudad)").eq("pharmacy_id", perfil.pharmacy_id).order("created_at", { ascending: false });
     console.log("Pedidos cargados:", peds, "Error:", pedsError);
     setPedidos(peds || []);
     
@@ -519,25 +521,112 @@ if (cargando) {
     }
 
     if (seccion === "pedidos") {
+      const pedidosActivos = pedidos.filter(p => p.estado !== "entregado" && p.estado !== "cancelado");
+      const estadoColors: Record<string, string> = {
+        pendiente: "bg-yellow-500",
+        en_preparacion: "bg-blue-500",
+        listo: "bg-orange-500",
+        en_camino: "bg-violet-600",
+        entregado: "bg-green-600",
+        cancelado: "bg-red-600",
+      };
+
       return (
         <>
-          <h2 className="text-xl font-bold mb-4">📋 Pedidos Activos</h2>
-          {pedidos.filter(p => p.estado !== "entregado" && p.estado !== "cancelado").length === 0 ? (
+          <h2 className="text-xl font-bold mb-4">📋 Pedidos</h2>
+          {pedidosActivos.length === 0 ? (
             <div className={`text-center py-12 text-slate-500 ${bgCard} rounded-xl`}>No hay pedidos activos</div>
           ) : (
             <div className="space-y-3">
-              {pedidos.filter(p => p.estado !== "entregado" && p.estado !== "cancelado").map(p => (
-                <div key={p.id} className={`${bgCard} rounded-xl p-4`}>
-                  <div className="flex justify-between items-start mb-2">
-                    <div><div className="font-bold">#{p.id?.slice(-6)}</div><div className="text-slate-500 text-xs">{fmtFecha(p.created_at)}</div></div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${p.estado === "entregado" ? "bg-green-600 text-white" : p.estado === "en_camino" ? "bg-violet-600 text-white" : p.estado === "listo" ? "bg-yellow-600 text-white" : "bg-slate-500 text-white"}`}>{p.tipo_venta === "presencial" ? "💰 Presencial" : p.estado}</span>
+              {pedidosActivos.map(p => {
+                const clienteNombre = p.cliente_nombre || p.profiles?.nombre || "Cliente";
+                return (
+                  <div
+                    key={p.id}
+                    onClick={() => setPedidoSeleccionado(p)}
+                    className={`${bgCard} rounded-xl p-4 cursor-pointer hover:shadow-lg transition-all`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-bold text-sm">#{p.id?.slice(-6)}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold text-white ${estadoColors[p.estado] || "bg-slate-500"}`}>
+                            {estadoLabel[p.estado] || p.estado}
+                          </span>
+                          {p.tipo_venta === "presencial" && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">💰 Presencial</span>
+                          )}
+                        </div>
+                        <div className={`text-sm font-medium ${modoOscuro ? "text-slate-300" : "text-slate-700"}`}>{clienteNombre}</div>
+                        <div className="text-slate-400 text-xs">{fmtFecha(p.created_at)}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-violet-600">{fmtCOP(p.total)}</div>
+                        {p.codigo_verificacion && (
+                          <div className={`text-xs px-2 py-1 rounded-lg font-bold mt-1 ${modoOscuro ? "bg-violet-900/40 text-violet-300" : "bg-violet-100 text-violet-700"}`}>
+                            {p.codigo_verificacion}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className={`${bgLight} rounded-lg p-2 text-sm`}>
-                    {p.pedido_productos?.map((item: any, idx: number) => <div key={idx}>{item.cantidad}x {item.productos?.nombre}</div>)}
-                  </div>
-                  <div className="mt-2 font-bold text-violet-600">{fmtCOP(p.total)}</div>
+                );
+              })}
+            </div>
+          )}
+
+          {pedidoSeleccionado && (
+            <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setPedidoSeleccionado(null)}>
+              <div className={`${bgCard} rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto scrollbar-hide`} onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg sm:text-xl font-bold text-violet-600">Pedido #{pedidoSeleccionado.id?.slice(-6)}</h2>
+                  <button onClick={() => setPedidoSeleccionado(null)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${modoOscuro ? "bg-slate-700 hover:bg-slate-600 text-slate-500" : "bg-slate-100 hover:bg-slate-200 text-slate-500"}`}>✕</button>
                 </div>
-              ))}
+
+                <div className="space-y-3 mb-4">
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Estado</span><span className={`px-2 py-0.5 rounded-full text-xs font-bold text-white ${estadoColors[pedidoSeleccionado.estado] || "bg-slate-500"}`}>{estadoLabel[pedidoSeleccionado.estado] || pedidoSeleccionado.estado}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Fecha</span><span className="font-bold">{fmtFecha(pedidoSeleccionado.created_at)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Cliente</span><span className="font-bold">{pedidoSeleccionado.cliente_nombre || pedidoSeleccionado.profiles?.nombre || "N/A"}</span></div>
+                  {pedidoSeleccionado.cliente_telefono && (
+                    <div className="flex justify-between text-sm"><span className="text-slate-500">Teléfono</span><span className="font-bold">{pedidoSeleccionado.cliente_telefono}</span></div>
+                  )}
+                  {pedidoSeleccionado.codigo_verificacion && (
+                    <div className="text-center py-3 bg-violet-100 dark:bg-violet-900/40 rounded-xl">
+                      <div className={`text-xs font-semibold ${modoOscuro ? "text-violet-300" : "text-violet-600"}`}>Código de entrega</div>
+                      <div className={`text-3xl font-bold ${modoOscuro ? "text-violet-300" : "text-violet-700"}`}>{pedidoSeleccionado.codigo_verificacion}</div>
+                    </div>
+                  )}
+                </div>
+
+                <div className={`border-t pt-3 mb-4 ${modoOscuro ? "border-slate-600" : "border-slate-200"}`}>
+                  <div className="font-bold text-sm mb-2">Productos</div>
+                  {pedidoSeleccionado.pedido_productos?.map((item: any, i: number) => (
+                    <div key={i} className="flex justify-between text-sm py-1.5">
+                      <span>{item.productos?.nombre} x{item.cantidad}</span>
+                      <span className="font-bold">{fmtCOP(item.precio_unitario * item.cantidad)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {pedidoSeleccionado.tipo_venta !== "presencial" && (
+                  <div className={`border-t pt-3 mb-4 ${modoOscuro ? "border-slate-600" : "border-slate-200"}`}>
+                    <div className="font-bold text-sm mb-2">Dirección de entrega</div>
+                    <div className={`text-sm ${modoOscuro ? "text-slate-300" : "text-slate-700"}`}>
+                      {pedidoSeleccionado.profiles?.direccion || "No registrada"}
+                    </div>
+                    {pedidoSeleccionado.profiles?.barrio && (
+                      <div className={`text-xs mt-1 ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>
+                        Barrio: {pedidoSeleccionado.profiles.barrio} · {pedidoSeleccionado.profiles?.ciudad || ""}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className={`border-t pt-3 ${modoOscuro ? "border-slate-600" : "border-slate-200"}`}>
+                  <div className="flex justify-between text-sm"><span>Domicilio</span><span>{fmtCOP(pedidoSeleccionado.costo_domicilio || 0)}</span></div>
+                  <div className="flex justify-between font-bold text-lg mt-1"><span>Total</span><span className="text-violet-600">{fmtCOP(pedidoSeleccionado.total)}</span></div>
+                </div>
+              </div>
             </div>
           )}
         </>
