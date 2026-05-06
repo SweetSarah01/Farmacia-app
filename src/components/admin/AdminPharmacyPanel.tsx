@@ -188,18 +188,37 @@ export default function AdminPharmacyPanel({ perfil, cerrarSesion, seccion, setS
 
   const cargarPedidos = async () => {
     if (!perfil?.pharmacy_id) return;
-    const { data: peds } = await supabase
+    const { data: peds, error } = await supabase
       .from("pedidos")
-      .select("*, pedido_productos(*, productos(nombre)), profiles:cliente_id(nombre, telefono, direccion)")
+      .select("*, pedido_productos(*, productos(nombre))")
       .eq("pharmacy_id", perfil.pharmacy_id)
       .order("created_at", { ascending: false });
     
-    const pedidosEnriquecidos = (peds || []).map(p => ({
-      ...p,
-      cliente_nombre: p.cliente_nombre || p.profiles?.nombre || "Cliente",
-      cliente_telefono: p.cliente_telefono || p.profiles?.telefono || "",
-      direccion_entrega: p.direccion_entrega || p.profiles?.direccion || "",
-    }));
+    if (error) {
+      setPedidos([]);
+      return;
+    }
+    
+    // Enriquecer con datos del cliente desde profiles
+    const pedidosEnriquecidos = await Promise.all(
+      (peds || []).map(async (p) => {
+        if (p.cliente_nombre || p.cliente_telefono || p.direccion_entrega) return p;
+        if (p.cliente_id) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("nombre, telefono, direccion")
+            .eq("id", p.cliente_id)
+            .single();
+          return {
+            ...p,
+            cliente_nombre: p.cliente_nombre || profile?.nombre || "Cliente",
+            cliente_telefono: p.cliente_telefono || profile?.telefono || "",
+            direccion_entrega: p.direccion_entrega || profile?.direccion || "",
+          };
+        }
+        return p;
+      })
+    );
     setPedidos(pedidosEnriquecidos);
   };
 
