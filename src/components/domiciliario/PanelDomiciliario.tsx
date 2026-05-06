@@ -37,19 +37,40 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
   const cargar = useCallback(async () => {
     const [{ data: disp }, { data: mis }] = await Promise.all([
       supabase.from("pedidos")
-        .select("*, pedido_productos(*, productos(nombre))")
+        .select("*, pedido_productos(*, productos(nombre)), pharmacies(nombre)")
         .eq("estado", "listo")
         .is("domiciliario_id", null)
         .limit(20),
       supabase.from("pedidos")
-        .select("*, pedido_productos(*, productos(nombre))")
+        .select("*, pedido_productos(*, productos(nombre)), pharmacies(nombre)")
         .eq("domiciliario_id", perfil.id)
         .in("estado", ["en_camino", "entregado"])
         .order("created_at", { ascending: false })
         .limit(20),
     ]);
-    setDisponibles(disp || []);
-    setMisServicios(mis || []);
+
+    const enriquecerPedidos = async (peds: any[]) => {
+      if (!peds) return [];
+      return Promise.all(
+        peds.map(async (p) => {
+          let clienteNombre = p.cliente_nombre;
+          let direccionEntrega = p.direccion_entrega;
+          if ((!clienteNombre || !direccionEntrega) && p.cliente_id) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("nombre, direccion")
+              .eq("id", p.cliente_id)
+              .single();
+            clienteNombre = clienteNombre || profile?.nombre || "Cliente";
+            direccionEntrega = direccionEntrega || profile?.direccion || "";
+          }
+          return { ...p, cliente_nombre: clienteNombre || "Cliente", direccion_entrega: direccionEntrega || "No registrada", farmacia_nombre: p.pharmacies?.nombre || "Farmacia" };
+        })
+      );
+    };
+
+    setDisponibles(await enriquecerPedidos(disp || []));
+    setMisServicios(await enriquecerPedidos(mis || []));
     setCargando(false);
   }, [perfil.id]);
 
@@ -156,16 +177,17 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
                   <div>
                     <div className="font-bold text-base sm:text-lg">Pedido #{p.id?.slice(-6)}</div>
+                    {p.codigo_verificacion && (
+                      <div className="text-xs text-violet-500 font-semibold mt-1">Código: {p.codigo_verificacion}</div>
+                    )}
                   </div>
                   <div className="font-bold text-violet-600 text-base sm:text-lg">{fmtCOP(p.total)}</div>
                 </div>
                 
-                <div className={`${bgLight} rounded-lg p-3 mb-3`}>
-                  {p.pedido_productos?.map((item: any, idx: number) => (
-                    <div key={idx} className="text-sm text-slate-600">
-                      {item.cantidad}x {item.productos?.nombre}
-                    </div>
-                  ))}
+                <div className={`space-y-1 mb-3 text-sm ${modoOscuro ? "text-slate-300" : "text-slate-700"}`}>
+                  <div><span className="font-semibold">👤 Cliente:</span> {p.cliente_nombre || "N/A"}</div>
+                  <div><span className="font-semibold">📍 Dirección:</span> {p.direccion_entrega || "No registrada"}</div>
+                  <div><span className="font-semibold">🏪 Farmacia:</span> {p.farmacia_nombre || "Farmacia"}</div>
                 </div>
                 
                 <div className="flex justify-between items-center">
@@ -186,17 +208,18 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
                       <div>
                         <div className="font-bold text-base sm:text-lg">Pedido #{p.id?.slice(-6)}</div>
-                        <div className="text-slate-600 text-xs sm:text-sm">{fmtFecha(p.created_at)}</div>
+                        {p.codigo_verificacion && (
+                          <div className="text-xs text-violet-500 font-semibold mt-1">Código: {p.codigo_verificacion}</div>
+                        )}
                       </div>
                       <span className="bg-blue-500 text-white px-2 sm:px-3 py-1 rounded-full text-xs font-bold">En camino</span>
                     </div>
                     
-                    <div className={`${bgLight} rounded-lg p-3 mb-2`}>
-                      {p.pedido_productos?.map((item: any, idx: number) => (
-                        <div key={idx} className="text-sm text-slate-600">
-                          {item.cantidad}x {item.productos?.nombre}
-                        </div>
-                      ))}
+                    <div className={`space-y-1 mb-3 text-sm ${modoOscuro ? "text-slate-300" : "text-slate-700"}`}>
+                      <div><span className="font-semibold">👤 Cliente:</span> {p.cliente_nombre || "N/A"}</div>
+                      <div><span className="font-semibold">📍 Dirección:</span> {p.direccion_entrega || "No registrada"}</div>
+                      <div><span className="font-semibold">🏪 Farmacia:</span> {p.farmacia_nombre || "Farmacia"}</div>
+                      <div><span className="font-semibold">💰 Total:</span> {fmtCOP(p.total)}</div>
                     </div>
 
                     {p.mensaje_domiciliario && (
@@ -231,19 +254,20 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
                   </div>
                 ))}
 
-                {misServicios.filter(p => p.estado === "entregado").length > 0 && (
-                  <div className="mt-6">
-                    <h3 className="font-bold text-slate-600 mb-3">Entregados</h3>
-                    {misServicios.filter(p => p.estado === "entregado").map(p => (
-                      <div key={p.id} className={`${bgLight} rounded-lg p-3 mb-2 opacity-70`}>
-                        <div className="flex justify-between items-center">
-                          <span className="font-semibold text-sm sm:text-base">Pedido #{p.id?.slice(-6)}</span>
-                          <span className="font-bold text-green-600 text-sm sm:text-base">{fmtCOP(p.total)}</span>
-                        </div>
+                    {misServicios.filter(p => p.estado === "entregado").length > 0 && (
+                      <div className="mt-6">
+                        <h3 className="font-bold text-slate-600 mb-3">Entregados</h3>
+                        {misServicios.filter(p => p.estado === "entregado").map(p => (
+                          <div key={p.id} className={`${bgLight} rounded-lg p-3 mb-2 opacity-70`}>
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-sm sm:text-base">Pedido #{p.id?.slice(-6)} · {p.cliente_nombre || "Cliente"}</span>
+                              <span className="font-bold text-green-600 text-sm sm:text-base">{fmtCOP(p.total)}</span>
+                            </div>
+                            <div className="text-xs text-slate-500 mt-1">📍 {p.direccion_entrega || "No registrada"}</div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )}
               </div>
             )}
           </div>
@@ -293,7 +317,7 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
                   className={`py-3 rounded-lg font-bold text-lg min-h-[44px] ${
                     tiempoSeleccionado === t 
                       ? "bg-green-600 text-white" 
-                      : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-white"
+                      : modoOscuro ? "bg-slate-700 text-white" : "bg-slate-200 text-slate-700"
                   }`}
                 >
                   {t}
