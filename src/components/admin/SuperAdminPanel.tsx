@@ -499,7 +499,7 @@ const aprobarPharmacy = async (id: string) => {
         <>
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
           🏪 Solicitudes de Farmacias
-          <button onClick={cargarDatos} className="text-violet-500 text-sm hover:underline">🔄 Actualizar</button>
+          <button onClick={() => cargarDatos()} className="text-violet-500 text-sm hover:underline">🔄 Actualizar</button>
         </h2>
         
         <div className="mb-4 flex flex-col sm:flex-row gap-2">
