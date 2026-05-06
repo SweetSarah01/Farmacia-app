@@ -305,9 +305,6 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
         {seccion === "pedidos" && (
           <>
             <h1 className="text-xl sm:text-2xl font-bold text-violet-600 mb-4 sm:mb-6">Pedidos</h1>
-            <div className={`text-sm mb-4 px-3 py-2 rounded-lg ${modoOscuro ? "bg-slate-800 text-slate-400" : "bg-violet-50 text-violet-600"}`}>
-              Haz clic en un pedido para ver los productos que debe preparar. Cuando el pedido esté completamente preparado, actualiza el estado a "Listo".
-            </div>
             
             {pedidos.length === 0 ? (
               <div className={`text-center py-12 text-slate-500 ${bgCard} rounded-xl`}>No hay pedidos</div>
