@@ -133,6 +133,13 @@ export default function AdminPharmacyPanel({ perfil, cerrarSesion, seccion, setS
     cargarDatos();
   }, [perfil?.pharmacy_id]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      cargarDatos();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [perfil?.pharmacy_id]);
+
   const cargarDatos = async () => {
     if (!perfil?.pharmacy_id) {
       setCargando(false);

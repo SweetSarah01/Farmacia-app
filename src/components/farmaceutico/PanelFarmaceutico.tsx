@@ -99,6 +99,15 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
   useEffect(() => { cargarProductos(); }, [cargarProductos]);
   useEffect(() => { cargarPedidos(); }, [cargarPedidos]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      cargarFormulas();
+      cargarProductos();
+      cargarPedidos();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [cargarFormulas, cargarProductos, cargarPedidos]);
+
   const aprobarFormula = async (id: string) => {
     await supabase.from("formulas").update({ estado: "aprobado", observacion: observacion || "Aprobado" }).eq("id", id);
     show("Fórmula aprobada");

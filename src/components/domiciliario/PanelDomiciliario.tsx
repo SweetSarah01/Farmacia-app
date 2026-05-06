@@ -66,6 +66,12 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      cargar();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [cargar]);
 
   const iniciarEntrega = async (pedido: any) => {
     await supabase.from("pedidos").update({ 
