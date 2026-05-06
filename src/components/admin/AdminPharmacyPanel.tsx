@@ -188,8 +188,19 @@ export default function AdminPharmacyPanel({ perfil, cerrarSesion, seccion, setS
 
   const cargarPedidos = async () => {
     if (!perfil?.pharmacy_id) return;
-    const { data: peds } = await supabase.from("pedidos").select("*, pedido_productos(*, productos(nombre))").eq("pharmacy_id", perfil.pharmacy_id).order("created_at", { ascending: false });
-    setPedidos(peds || []);
+    const { data: peds } = await supabase
+      .from("pedidos")
+      .select("*, pedido_productos(*, productos(nombre)), profiles:cliente_id(nombre, telefono, direccion)")
+      .eq("pharmacy_id", perfil.pharmacy_id)
+      .order("created_at", { ascending: false });
+    
+    const pedidosEnriquecidos = (peds || []).map(p => ({
+      ...p,
+      cliente_nombre: p.cliente_nombre || p.profiles?.nombre || "Cliente",
+      cliente_telefono: p.cliente_telefono || p.profiles?.telefono || "",
+      direccion_entrega: p.direccion_entrega || p.profiles?.direccion || "",
+    }));
+    setPedidos(pedidosEnriquecidos);
   };
 
   const guardarProducto = async () => {
@@ -612,7 +623,7 @@ if (cargando) {
                     <div className="flex justify-between text-sm"><span className="text-slate-500">Teléfono</span><span className="font-bold">{pedidoSeleccionado.cliente_telefono}</span></div>
                   )}
                   {pedidoSeleccionado.codigo_verificacion && (
-                    <div className="text-center py-3 bg-violet-100 dark:bg-violet-900/40 rounded-xl">
+                    <div className={`text-center py-3 rounded-xl ${modoOscuro ? "bg-violet-900/40" : "bg-violet-100"}`}>
                       <div className={`text-xs font-semibold ${modoOscuro ? "text-violet-300" : "text-violet-600"}`}>Código de entrega</div>
                       <div className={`text-3xl font-bold ${modoOscuro ? "text-violet-300" : "text-violet-700"}`}>{pedidoSeleccionado.codigo_verificacion}</div>
                     </div>
@@ -629,7 +640,7 @@ if (cargando) {
                   ))}
                 </div>
 
-                {pedidoSeleccionado.tipo_venta !== "presencial" && (
+                {(pedidoSeleccionado.tipo_venta !== "presencial" || pedidoSeleccionado.direccion_entrega) && (
                   <div className={`border-t pt-3 mb-4 ${modoOscuro ? "border-slate-600" : "border-slate-200"}`}>
                     <div className="font-bold text-sm mb-2">Dirección de entrega</div>
                     <div className={`text-sm ${modoOscuro ? "text-slate-300" : "text-slate-700"}`}>
