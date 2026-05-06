@@ -51,6 +51,7 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
   const [editandoProducto, setEditandoProducto] = useState<any>(null);
   const [nuevoStock, setNuevoStock] = useState("");
   const [nuevoPrecio, setNuevoPrecio] = useState("");
+  const [busquedaInventario, setBusquedaInventario] = useState("");
   
   // Estados para venta presencial
   const [carritoPresencial, setCarritoPresencial] = useState<any[]>([]);
@@ -243,10 +244,23 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
         {seccion === "inventario" && (
           <>
             <h1 className="text-xl sm:text-2xl font-bold text-violet-600 mb-4 sm:mb-6">Inventario</h1>
+            <div className={`flex items-center gap-3 mb-4 px-3 py-2 ${modoOscuro ? "bg-slate-800" : "bg-white"} rounded-lg border ${modoOscuro ? "border-slate-700" : "border-slate-200"}`}>
+              <span className="text-slate-400">🔍</span>
+              <input
+                type="text"
+                placeholder="Buscar producto por nombre..."
+                value={busquedaInventario}
+                onChange={(e) => setBusquedaInventario(e.target.value)}
+                className={`flex-1 bg-transparent outline-none text-sm ${modoOscuro ? "text-white placeholder-slate-500" : "text-slate-800 placeholder-slate-400"}`}
+              />
+              {busquedaInventario && (
+                <button onClick={() => setBusquedaInventario("")} className="text-slate-400 hover:text-slate-600 text-sm">✕</button>
+              )}
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <div className="font-bold text-red-600 mb-3">Con Receta ({productosConFormula.length})</div>
-                {productosConFormula.map(p => (
+                <div className="font-bold text-red-600 mb-3">Con Receta ({productosConFormula.filter(p => p.nombre.toLowerCase().includes(busquedaInventario.toLowerCase())).length})</div>
+                {productosConFormula.filter(p => p.nombre.toLowerCase().includes(busquedaInventario.toLowerCase())).map(p => (
                   <div key={p.id} className={`${bgCard} rounded-lg p-3 mb-2 shadow-sm`}>
                     <div className="font-semibold flex justify-between items-center">
                       <span>{p.nombre}</span>
@@ -264,8 +278,8 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
                 ))}
               </div>
               <div>
-                <div className="font-bold text-violet-600 mb-3">Venta Libre ({productos.filter(p => !p.formula_medica).length})</div>
-                {productos.filter(p => !p.formula_medica).map(p => (
+                <div className="font-bold text-violet-600 mb-3">Venta Libre ({productos.filter(p => !p.formula_medica).filter(p => p.nombre.toLowerCase().includes(busquedaInventario.toLowerCase())).length})</div>
+                {productos.filter(p => !p.formula_medica).filter(p => p.nombre.toLowerCase().includes(busquedaInventario.toLowerCase())).map(p => (
                   <div key={p.id} className={`${bgCard} rounded-lg p-3 mb-2 shadow-sm`}>
                     <div className="font-semibold flex justify-between items-center">
                       <span>{p.nombre}</span>
