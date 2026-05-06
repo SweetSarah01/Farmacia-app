@@ -169,11 +169,10 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
   }, [seccion, perfil?.id, cargarMisPedidos]);
 
   useEffect(() => {
-    const channel = supabase.channel("formulas-realtime")
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "formulas", filter: `usuario_id=eq.${perfil.id}` }, () => cargarFormulas())
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "formulas", filter: `usuario_id=eq.${perfil.id}` }, () => cargarFormulas())
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    if (!perfil?.id) return;
+    cargarFormulas();
+    const interval = setInterval(() => cargarFormulas(), 3000);
+    return () => clearInterval(interval);
   }, [perfil?.id, cargarFormulas]);
 
   const agregarCarrito = (producto: any) => {
