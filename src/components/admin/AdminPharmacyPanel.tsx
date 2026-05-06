@@ -135,6 +135,15 @@ export default function AdminPharmacyPanel({ perfil, cerrarSesion, seccion, setS
     cargarDatos();
   }, [perfil?.pharmacy_id]);
 
+  // Auto-refresh pedidos cada 3s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!perfil?.pharmacy_id) return;
+      cargarPedidos();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [perfil?.pharmacy_id]);
+
   const cargarDatos = async () => {
     if (!perfil?.pharmacy_id) {
       setCargando(false);
@@ -161,10 +170,7 @@ export default function AdminPharmacyPanel({ perfil, cerrarSesion, seccion, setS
     setProductos(prods || []);
     
     // Cargar pedidos de esta pharmacy
-    console.log("Cargando pedidos con pharmacy_id:", perfil.pharmacy_id);
-    const { data: peds, error: pedsError } = await supabase.from("pedidos").select("*, pedido_productos(*, productos(nombre))").eq("pharmacy_id", perfil.pharmacy_id).order("created_at", { ascending: false });
-    console.log("Pedidos cargados:", peds, "Error:", pedsError);
-    setPedidos(peds || []);
+    await cargarPedidos();
     
     // Cargar usuarios de esta pharmacy
     console.log("Cargando usuarios con pharmacy_id:", perfil.pharmacy_id);
@@ -178,6 +184,12 @@ export default function AdminPharmacyPanel({ perfil, cerrarSesion, seccion, setS
     setTodosUsuarios(allUsers || []);
     
     setCargando(false);
+  };
+
+  const cargarPedidos = async () => {
+    if (!perfil?.pharmacy_id) return;
+    const { data: peds } = await supabase.from("pedidos").select("*, pedido_productos(*, productos(nombre))").eq("pharmacy_id", perfil.pharmacy_id).order("created_at", { ascending: false });
+    setPedidos(peds || []);
   };
 
   const guardarProducto = async () => {
