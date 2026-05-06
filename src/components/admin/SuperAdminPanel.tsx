@@ -47,18 +47,40 @@ const glassCard = modoOscuro
   const [farmaciaSeleccionada, setFarmaciaSeleccionada] = useState<any>(null);
   const [busquedaFarmacia, setBusquedaFarmacia] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
 
   useEffect(() => {
     cargarDatos();
   }, []);
 
-  const cargarDatos = async () => {
+  const cargarDatos = async (filtroFechaInicio?: string, filtroFechaFin?: string) => {
     setCargando(true);
     
-    const { data: pharms } = await supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
+    let queryPharmacies = supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
+    let queryUsers = supabase.from("profiles").select("*").order("created_at", { ascending: false });
+    let queryPedidos = supabase.from("pedidos").select("*");
+    let queryProductos = supabase.from("productos").select("*");
+    
+    if (filtroFechaInicio) {
+      const fechaInicioISO = new Date(filtroFechaInicio + "T00:00:00").toISOString();
+      queryPharmacies = queryPharmacies.gte("created_at", fechaInicioISO);
+      queryUsers = queryUsers.gte("created_at", fechaInicioISO);
+      queryPedidos = queryPedidos.gte("created_at", fechaInicioISO);
+      queryProductos = queryProductos.gte("created_at", fechaInicioISO);
+    }
+    if (filtroFechaFin) {
+      const fechaFinISO = new Date(filtroFechaFin + "T23:59:59").toISOString();
+      queryPharmacies = queryPharmacies.lte("created_at", fechaFinISO);
+      queryUsers = queryUsers.lte("created_at", fechaFinISO);
+      queryPedidos = queryPedidos.lte("created_at", fechaFinISO);
+      queryProductos = queryProductos.lte("created_at", fechaFinISO);
+    }
+    
+    const { data: pharms } = await queryPharmacies;
     setPharmacies(pharms || []);
     
-    const { data: users } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
+    const { data: users } = await queryUsers;
     const pharmMap: Record<string, string> = {};
     (pharms || []).forEach(p => { pharmMap[p.id] = p.nombre; });
     const usersConFarmacia = (users || []).map(u => ({
@@ -67,8 +89,8 @@ const glassCard = modoOscuro
     }));
     setUsuarios(usersConFarmacia);
     
-    const { data: pedidos } = await supabase.from("pedidos").select("*");
-    const { data: productos } = await supabase.from("productos").select("*");
+    const { data: pedidos } = await queryPedidos;
+    const { data: productos } = await queryProductos;
     
     const approved = (pharms || []).filter(p => p.estado === "aprobado").length;
     const pending = (pharms || []).filter(p => p.estado === "pendiente").length;
@@ -77,7 +99,7 @@ const glassCard = modoOscuro
     const superAdmins = (users || []).filter(u => u.rol === "superadmin").length;
     const admins = (users || []).filter(u => u.rol === "admin").length;
     const farmaceuticos = (users || []).filter(u => u.rol === "farmaceutico").length;
-    const domiciliario = (users || []) .filter(u => u.rol === "domiciliario").length;
+    const domiciliario = (users || []).filter(u => u.rol === "domiciliario").length;
     const clientes = (users || []).filter(u => u.rol === "cliente").length;
     
     const pedidosPendientes = (pedidos || []).filter(p => p.estado === "pendiente").length;
@@ -343,6 +365,50 @@ const aprobarPharmacy = async (id: string) => {
         
         {tab === "dashboard" && (
         <>
+          <div className="mb-4 p-4 rounded-xl bg-violet-50 dark:bg-slate-800 border border-violet-200 dark:border-violet-700">
+            <p className="text-sm mb-3 text-slate-600 dark:text-slate-300">
+              Puedes filtrar las estadísticas por rango de fechas.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2 items-end">
+              <div>
+                <label className="text-xs text-slate-500">Fecha inicio</label>
+                <input
+                  type="date"
+                  value={fechaInicio}
+                  onChange={e => setFechaInicio(e.target.value)}
+                  className={`block px-3 py-2 rounded-lg border text-sm ${bgInput}`}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500">Fecha fin</label>
+                <input
+                  type="date"
+                  value={fechaFin}
+                  onChange={e => setFechaFin(e.target.value)}
+                  className={`block px-3 py-2 rounded-lg border text-sm ${bgInput}`}
+                />
+              </div>
+              <button
+                onClick={() => cargarDatos(fechaInicio, fechaFin)}
+                className="bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-violet-700 min-h-[36px]"
+              >
+                Filtrar
+              </button>
+              {(fechaInicio || fechaFin) && (
+                <button
+                  onClick={() => {
+                    setFechaInicio("");
+                    setFechaFin("");
+                    cargarDatos();
+                  }}
+                  className="text-sm text-red-500 hover:text-red-400 min-h-[36px]"
+                >
+                  Limpiar filtro
+                </button>
+              )}
+            </div>
+          </div>
+
           <h2 className="text-xl font-bold mb-4">🏪 Farmacias</h2>
 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <div className={glassCard}>
