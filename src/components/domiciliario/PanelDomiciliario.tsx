@@ -31,6 +31,8 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
   const [codigoInput, setCodigoInput] = useState("");
   const [tiempoModal, setTiempoModal] = useState<any>(null);
   const [tiempoSeleccionado, setTiempoSeleccionado] = useState(15);
+  const [tiemposInicio, setTiemposInicio] = useState<Record<string, number>>({});
+  const [tiemposEstimados, setTiemposEstimados] = useState<Record<string, number>>({});
   const [mensajeModal, setMensajeModal] = useState<any>(null);
   const [mensajeTexto, setMensajeTexto] = useState("");
 
@@ -70,23 +72,42 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
     };
 
     setDisponibles(await enriquecerPedidos(disp || []));
-    setMisServicios(await enriquecerPedidos(mis || []));
+    const enriquecidos = await enriquecerPedidos(mis || []);
+    setMisServicios(enriquecidos);
+
+    const inicios: Record<string, number> = {};
+    const estimados: Record<string, number> = {};
+    enriquecidos.filter(p => p.estado === "en_camino").forEach(p => {
+      const tiempoMin = p.tiempo_estimado || 15;
+      estimados[p.id] = tiempoMin;
+      const now = Date.now();
+      const tiempoMs = now - (tiempoMin * 60000);
+      inicios[p.id] = tiempoMs;
+    });
+    setTiemposInicio(inicios);
+    setTiemposEstimados(estimados);
+
     setCargando(false);
   }, [perfil.id]);
 
   useEffect(() => { cargar(); }, [cargar]);
   useEffect(() => {
     const interval = setInterval(() => {
-      setTiempoEntrega(prev => {
-        const next: Record<string, number> = {};
-        for (const id in prev) {
-          next[id] = Math.min(prev[id] + 10, 100);
+      setTiemposInicio(prev => {
+        const next = { ...prev };
+        const updated: Record<string, number> = {};
+        for (const id in next) {
+          const elapsedMin = (Date.now() - next[id]) / 60000;
+          const estMin = tiemposEstimados[id] || 15;
+          const progreso = Math.min(100, (elapsedMin / estMin) * 100);
+          updated[id] = progreso;
         }
+        setTiempoEntrega(updated);
         return next;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [tiemposEstimados]);
   useEffect(() => {
     const interval = setInterval(() => {
       cargar();
@@ -95,12 +116,14 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
   }, [cargar]);
 
   const iniciarEntrega = async (pedido: any) => {
+    const tiempoEst = pedido.tiempo_estimado || 15;
     await supabase.from("pedidos").update({ 
       domiciliario_id: perfil.id, 
       estado: "en_camino",
-      tiempo_estimado: 15
+      tiempo_estimado: tiempoEst
     }).eq("id", pedido.id);
-    setTiempoEntrega(prev => ({ ...prev, [pedido.id]: 10 }));
+    setTiemposInicio(prev => ({ ...prev, [pedido.id]: Date.now() }));
+    setTiemposEstimados(prev => ({ ...prev, [pedido.id]: tiempoEst }));
     show("Entrega iniciada!");
     cargar();
   };
@@ -115,7 +138,12 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
     show("Pedido entregado!");
     setCodigoModal(null);
     setCodigoInput("");
-    setTiempoEntrega(prev => {
+    setTiemposInicio(prev => {
+      const next = { ...prev };
+      delete next[codigoModal.id];
+      return next;
+    });
+    setTiemposEstimados(prev => {
       const next = { ...prev };
       delete next[codigoModal.id];
       return next;
@@ -126,6 +154,8 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
   const guardarTiempo = async () => {
     if (!tiempoModal) return;
     await supabase.from("pedidos").update({ tiempo_estimado: tiempoSeleccionado }).eq("id", tiempoModal.id);
+    setTiemposInicio(prev => ({ ...prev, [tiempoModal.id]: Date.now() }));
+    setTiemposEstimados(prev => ({ ...prev, [tiempoModal.id]: tiempoSeleccionado }));
     show(`Tiempo estimado: ${tiempoSeleccionado} minutos`);
     setTiempoModal(null);
     cargar();
@@ -145,15 +175,16 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
 
   const getBarraProgreso = (pedidoId: string, tiempoEst: number) => {
     const progreso = tiempoEntrega[pedidoId] || 0;
-    const tiempoRestante = Math.max(0, tiempoEst - Math.floor(progreso * tiempoEst / 100));
+    const elapsedMin = tiemposInicio[pedidoId] ? (Date.now() - tiemposInicio[pedidoId]) / 60000 : 0;
+    const tiempoRestante = Math.max(0, tiempoEst - elapsedMin);
     return (
       <div className="mt-3">
         <div className="flex justify-between text-xs text-slate-500 mb-1">
-          <span>Llega en ~{tiempoRestante} min</span>
-          <span>{progreso}%</span>
+          <span>Llega en ~{Math.ceil(tiempoRestante)} min</span>
+          <span>{Math.round(progreso)}%</span>
         </div>
         <div className="h-3 bg-slate-200 rounded-full overflow-hidden">
-          <div className={`h-full transition-all duration-1000 ${progreso >= 80 ? "bg-green-500" : progreso >= 50 ? "bg-amber-500" : "bg-blue-500"}`} style={{ width: `${progreso}%` }} />
+          <div className={`h-full transition-all duration-1000 ${progreso >= 80 ? "bg-green-500" : progreso >= 50 ? "bg-amber-500" : "bg-blue-500"}`} style={{ width: `${Math.min(progreso, 100)}%` }} />
         </div>
       </div>
     );
