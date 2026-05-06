@@ -357,6 +357,11 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
       entregado: false,
       metodo_pago: metodoPago,
       codigo_verificacion: codigoVerificacion,
+      cliente_nombre: perfil.nombre || perfil.email || "Cliente",
+      cliente_telefono: perfil.telefono || "",
+      direccion_entrega: tipoEntrega === "recoger" 
+        ? (farmaciasList.find(f => f.id === farmaciaElegida)?.direccion || "")
+        : (perfil.direccion || ""),
     }).select().single();
     
     if (error || !pedido) { 
