@@ -35,6 +35,8 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
   const [tiemposEstimados, setTiemposEstimados] = useState<Record<string, number>>({});
   const [mensajeModal, setMensajeModal] = useState<any>(null);
   const [mensajeTexto, setMensajeTexto] = useState("");
+  const [tabActiva, setTabActiva] = useState("disponibles");
+  const [filtroFecha, setFiltroFecha] = useState("");
 
   const cargar = useCallback(async () => {
     const [{ data: disp }, { data: mis }] = await Promise.all([
@@ -80,9 +82,13 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
     enriquecidos.filter(p => p.estado === "en_camino").forEach(p => {
       const tiempoMin = p.tiempo_estimado || 15;
       estimados[p.id] = tiempoMin;
-      const now = Date.now();
-      const tiempoMs = now - (tiempoMin * 60000);
-      inicios[p.id] = tiempoMs;
+      if (tiemposInicio[p.id]) {
+        inicios[p.id] = tiemposInicio[p.id];
+      } else {
+        const now = Date.now();
+        const tiempoMs = now - (tiempoMin * 60000);
+        inicios[p.id] = tiempoMs;
+      }
     });
     setTiemposInicio(inicios);
     setTiemposEstimados(estimados);
@@ -158,7 +164,6 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
     setTiemposEstimados(prev => ({ ...prev, [tiempoModal.id]: tiempoSeleccionado }));
     show(`Tiempo estimado: ${tiempoSeleccionado} minutos`);
     setTiempoModal(null);
-    cargar();
   };
 
   const enviarMensaje = async () => {
@@ -195,47 +200,39 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
       <Toast msg={toast.msg} tipo={toast.tipo} onClose={clear} />
 
       <div className="max-w-4xl mx-auto p-4 sm:p-6 mt-4">
-        <h1 className="text-xl sm:text-2xl font-bold text-violet-600 mb-4 sm:mb-6">Pedidos listos para entrega</h1>
-        
-        {cargando ? (
-          <div className="text-center py-12 text-slate-500">Cargando...</div>
-        ) : disponibles.length === 0 && misServicios.length === 0 ? (
-          <div className={`text-center py-12 text-slate-500 ${bgCard} rounded-xl p-8`}>No hay pedidos disponibles</div>
-        ) : (
-          <div>
-            {disponibles.map(p => (
-              <div key={p.id} className={`${bgCard} rounded-xl p-4 sm:p-5 mb-4 shadow-sm border-2 border-green-400`}>
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
-                  <div>
-                    <div className="font-bold text-base sm:text-lg">Pedido #{p.id?.slice(-6)}</div>
-                    {p.codigo_verificacion && (
-                      <div className="text-xs text-violet-500 font-semibold mt-1">Código: {p.codigo_verificacion}</div>
-                    )}
-                  </div>
-                  <div className="font-bold text-violet-600 text-base sm:text-lg">{fmtCOP(p.total)}</div>
-                </div>
-                
-                <div className={`space-y-1 mb-3 text-sm ${modoOscuro ? "text-slate-300" : "text-slate-700"}`}>
-                  <div><span className="font-semibold">👤 Cliente:</span> {p.cliente_nombre || "N/A"}</div>
-                  <div><span className="font-semibold">📍 Dirección:</span> {p.direccion_entrega || "No registrada"}</div>
-                  <div><span className="font-semibold">🏪 Farmacia:</span> {p.farmacia_nombre || "Farmacia"}</div>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <button 
-                    className="bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-semibold hover:bg-green-700 min-h-[44px]"
-                    onClick={() => iniciarEntrega(p)}>
-                    Iniciar Entrega
-                  </button>
-                </div>
-              </div>
-            ))}
+        <div className="flex gap-2 mb-4 sm:mb-6 border-b border-slate-700">
+          <button
+            onClick={() => setTabActiva("disponibles")}
+            className={`px-4 py-2 font-semibold text-sm sm:text-base border-b-2 min-h-[44px] ${
+              tabActiva === "disponibles"
+                ? "border-violet-500 text-violet-600"
+                : "border-transparent text-slate-500 hover:text-slate-300"
+            }`}>
+            Pedidos Disponibles
+          </button>
+          <button
+            onClick={() => setTabActiva("mis-entregas")}
+            className={`px-4 py-2 font-semibold text-sm sm:text-base border-b-2 min-h-[44px] ${
+              tabActiva === "mis-entregas"
+                ? "border-violet-500 text-violet-600"
+                : "border-transparent text-slate-500 hover:text-slate-300"
+            }`}>
+            Mis Entregas
+          </button>
+        </div>
 
-            {misServicios.length > 0 && (
-              <div className="mt-6 sm:mt-8">
-                <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-slate-700">Mis entregas en curso</h2>
-                {misServicios.filter(p => p.estado === "en_camino").map(p => (
-                  <div key={p.id} className={`${bgCard} rounded-xl p-4 sm:p-5 mb-4 shadow-sm border-l-4 border-violet-500`}>
+        {tabActiva === "disponibles" && (
+          <>
+            <h1 className="text-xl sm:text-2xl font-bold text-violet-600 mb-4 sm:mb-6">Pedidos listos para entrega</h1>
+            
+            {cargando ? (
+              <div className="text-center py-12 text-slate-500">Cargando...</div>
+            ) : disponibles.length === 0 ? (
+              <div className={`text-center py-12 text-slate-500 ${bgCard} rounded-xl p-8`}>No hay pedidos disponibles</div>
+            ) : (
+              <div>
+                {disponibles.map(p => (
+                  <div key={p.id} className={`${bgCard} rounded-xl p-4 sm:p-5 mb-4 shadow-sm border-2 border-green-400`}>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
                       <div>
                         <div className="font-bold text-base sm:text-lg">Pedido #{p.id?.slice(-6)}</div>
@@ -243,7 +240,83 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
                           <div className="text-xs text-violet-500 font-semibold mt-1">Código: {p.codigo_verificacion}</div>
                         )}
                       </div>
-                      <span className="bg-blue-500 text-white px-2 sm:px-3 py-1 rounded-full text-xs font-bold">En camino</span>
+                      <div className="font-bold text-violet-600 text-base sm:text-lg">{fmtCOP(p.total)}</div>
+                    </div>
+                    
+                    <div className={`space-y-1 mb-3 text-sm ${modoOscuro ? "text-slate-300" : "text-slate-700"}`}>
+                      <div><span className="font-semibold">👤 Cliente:</span> {p.cliente_nombre || "N/A"}</div>
+                      <div><span className="font-semibold">📍 Dirección:</span> {p.direccion_entrega || "No registrada"}</div>
+                      <div><span className="font-semibold">🏪 Farmacia:</span> {p.farmacia_nombre || "Farmacia"}</div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <button 
+                        className="bg-green-600 text-white px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-semibold hover:bg-green-700 min-h-[44px]"
+                        onClick={() => iniciarEntrega(p)}>
+                        Iniciar Entrega
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {tabActiva === "mis-entregas" && (
+          <>
+            <h1 className="text-xl sm:text-2xl font-bold text-violet-600 mb-4">Mis Entregas</h1>
+            <p className={`text-sm mb-4 ${modoOscuro ? "text-slate-400" : "text-slate-600"}`}>
+              Verás todas las entregas que has realizado con: fecha, cliente, dirección y estado.
+            </p>
+            
+            <div className="mb-4 flex flex-col sm:flex-row gap-2">
+              <label className={`text-sm ${modoOscuro ? "text-slate-300" : "text-slate-700"}`}>
+                Filtrar por fecha:
+              </label>
+              <input
+                type="date"
+                value={filtroFecha}
+                onChange={e => setFiltroFecha(e.target.value)}
+                className={`px-3 py-2 rounded-lg border text-sm ${bgInput}`}
+              />
+              {filtroFecha && (
+                <button
+                  onClick={() => setFiltroFecha("")}
+                  className="text-sm text-red-500 hover:text-red-400 min-h-[36px]">
+                  Limpiar filtro
+                </button>
+              )}
+            </div>
+
+            <p className={`text-xs mb-4 italic ${modoOscuro ? "text-slate-500" : "text-slate-400"}`}>
+              Puedes filtrar por fecha para ver entregas de un período específico.
+            </p>
+
+            {cargando ? (
+              <div className="text-center py-12 text-slate-500">Cargando...</div>
+            ) : misServicios.length === 0 ? (
+              <div className={`text-center py-12 text-slate-500 ${bgCard} rounded-xl p-8`}>No hay entregas registradas</div>
+            ) : (
+              <div>
+                {misServicios
+                  .filter(p => {
+                    if (!filtroFecha) return true;
+                    const fechaPedido = new Date(p.created_at).toISOString().split("T")[0];
+                    return fechaPedido === filtroFecha;
+                  })
+                  .map(p => (
+                  <div key={p.id} className={`${bgCard} rounded-xl p-4 sm:p-5 mb-4 shadow-sm`}>
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
+                      <div>
+                        <div className="font-bold text-base sm:text-lg">Pedido #{p.id?.slice(-6)}</div>
+                        <div className="text-xs text-slate-500">{fmtFecha(p.created_at)}</div>
+                      </div>
+                      <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-bold ${
+                        p.estado === "entregado" ? "bg-green-500 text-white" : "bg-blue-500 text-white"
+                      }`}>
+                        {p.estado === "entregado" ? "Entregado" : "En camino"}
+                      </span>
                     </div>
                     
                     <div className={`space-y-1 mb-3 text-sm ${modoOscuro ? "text-slate-300" : "text-slate-700"}`}>
@@ -253,55 +326,44 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
                       <div><span className="font-semibold">💰 Total:</span> {fmtCOP(p.total)}</div>
                     </div>
 
-                    {p.mensaje_domiciliario && (
-                      <div className="mb-2 p-2 bg-blue-100 rounded-lg text-sm text-violet-700">
-                        {p.mensaje_domiciliario}
-                      </div>
+                    {p.estado === "en_camino" && (
+                      <>
+                        {p.mensaje_domiciliario && (
+                          <div className="mb-2 p-2 bg-blue-100 rounded-lg text-sm text-violet-700">
+                            {p.mensaje_domiciliario}
+                          </div>
+                        )}
+                        
+                        {getBarraProgreso(p.id, p.tiempo_estimado || 15)}
+                        
+                        <div className="flex flex-wrap gap-2 mt-3">
+                          <button 
+                            className="bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-amber-600 min-h-[40px]"
+                            onClick={() => setTiempoModal(p)}>
+                            Tiempo
+                          </button>
+                          <button 
+                            className="bg-cyan-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-cyan-600 min-h-[40px]"
+                            onClick={() => setMensajeModal(p)}>
+                            Mensaje
+                          </button>
+                        </div>
+                        
+                        <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-2">
+                          <div className="font-bold text-violet-600 text-base sm:text-lg">{fmtCOP(p.total)}</div>
+                          <button 
+                            className="bg-green-600 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold hover:bg-green-700 min-h-[44px]"
+                            onClick={() => setCodigoModal(p)}>
+                            Entregado
+                          </button>
+                        </div>
+                      </>
                     )}
-                    
-                    {getBarraProgreso(p.id, p.tiempo_estimado || 15)}
-                    
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      <button 
-                        className="bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-amber-600 min-h-[40px]"
-                        onClick={() => setTiempoModal(p)}>
-                        Tiempo
-                      </button>
-                      <button 
-                        className="bg-cyan-500 text-white px-3 py-2 rounded-lg text-sm font-semibold hover:bg-cyan-600 min-h-[40px]"
-                        onClick={() => setMensajeModal(p)}>
-                        Mensaje
-                      </button>
-                    </div>
-                    
-                    <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-2">
-                      <div className="font-bold text-violet-600 text-base sm:text-lg">{fmtCOP(p.total)}</div>
-                      <button 
-                        className="bg-green-600 text-white px-4 sm:px-6 py-2 rounded-lg font-semibold hover:bg-green-700 min-h-[44px]"
-                        onClick={() => setCodigoModal(p)}>
-                        Entregado
-                      </button>
-                    </div>
                   </div>
                 ))}
-
-                    {misServicios.filter(p => p.estado === "entregado").length > 0 && (
-                      <div className="mt-6">
-                        <h3 className="font-bold text-slate-600 mb-3">Entregados</h3>
-                        {misServicios.filter(p => p.estado === "entregado").map(p => (
-                          <div key={p.id} className={`${bgLight} rounded-lg p-3 mb-2 opacity-70`}>
-                            <div className="flex justify-between items-center">
-                              <span className="font-semibold text-sm sm:text-base">Pedido #{p.id?.slice(-6)} · {p.cliente_nombre || "Cliente"}</span>
-                              <span className="font-bold text-green-600 text-sm sm:text-base">{fmtCOP(p.total)}</span>
-                            </div>
-                            <div className="text-xs text-slate-500 mt-1">📍 {p.direccion_entrega || "No registrada"}</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
               </div>
             )}
-          </div>
+          </>
         )}
       </div>
 
