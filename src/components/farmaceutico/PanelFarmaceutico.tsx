@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "../../supabaseClient";
+import { supabase, estadoLabel } from "../../supabaseClient";
 import { Toast, useToast } from "../common/Toast";
 import { useTheme } from "../../App";
 
@@ -61,6 +61,8 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
   const [metodoPago, setMetodoPago] = useState("");
   const [procesando, setProcesando] = useState(false);
   const [infoPago, setInfoPago] = useState({ numeroTarjeta: "", nombreTitular: "", expiry: "", cvv: "" });
+
+  const [pedidoSeleccionado, setPedidoSeleccionado] = useState<any>(null);
 
   const cargarFormulas = useCallback(() => {
     supabase.from("formulas")
@@ -303,35 +305,27 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
         {seccion === "pedidos" && (
           <>
             <h1 className="text-xl sm:text-2xl font-bold text-violet-600 mb-4 sm:mb-6">Pedidos</h1>
+            <div className={`text-sm mb-4 px-3 py-2 rounded-lg ${modoOscuro ? "bg-slate-800 text-slate-400" : "bg-violet-50 text-violet-600"}`}>
+              Haz clic en un pedido para ver los productos que debe preparar. Cuando el pedido esté completamente preparado, actualiza el estado a "Listo".
+            </div>
             
             {pedidos.length === 0 ? (
-<div className={`text-center py-12 text-slate-500 ${bgCard} rounded-xl`}>No hay pedidos</div>
+              <div className={`text-center py-12 text-slate-500 ${bgCard} rounded-xl`}>No hay pedidos</div>
             ) : (
               <>
-                {pedidosEnCamino.length > 0 && (
+                {pedidosEnPreparacion.length > 0 && (
                   <div className="mb-6">
-                    <div className="font-bold text-violet-600 mb-3">🚴 En camino ({pedidosEnCamino.length})</div>
-                    {pedidosEnCamino.map(p => (
-                      <div key={p.id} className={`${bgCard} rounded-xl p-4 mb-3 border-l-4 border-blue-500`}>
+                    <div className="font-bold text-yellow-600 mb-3">🔄 En preparación ({pedidosEnPreparacion.length})</div>
+                    {pedidosEnPreparacion.map(p => (
+                      <div key={p.id} onClick={() => setPedidoSeleccionado(p)} className={`${bgCard} rounded-xl p-4 mb-3 border-l-4 border-yellow-500 cursor-pointer hover:shadow-lg transition-all`}>
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="font-bold">Pedido #{p.id?.slice(-6)}</div>
                             <div className="text-slate-500 text-xs">{fmtFecha(p.created_at)}</div>
                           </div>
-                          <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-bold">🚴 En camino</span>
+                          <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold">En preparación</span>
                         </div>
-                        <div className={`${bgLight} rounded-lg p-2 mt-2`}>
-                          {p.pedido_productos?.map((item: any, idx: number) => (
-                            <div key={idx} className="text-sm text-slate-600">{item.cantidad}x {item.productos?.nombre}</div>
-                          ))}
-                        </div>
-                        <div className="mt-2">
-                          <div className="text-xs text-slate-500 mb-1">Progreso de entrega</div>
-                          <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-blue-400 to-green-400" style={{ width: '60%' }} />
-                          </div>
-                        </div>
-                        <div className="font-bold text-violet-600 mt-2">{fmtCOP(p.total)}</div>
+                        <div className="text-slate-400 text-xs mt-2">Clic para ver productos</div>
                       </div>
                     ))}
                   </div>
@@ -341,7 +335,7 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
                   <div className="mb-6">
                     <div className="font-bold text-violet-600 mb-3">📦 Listos para entrega ({pedidosListos.length})</div>
                     {pedidosListos.map(p => (
-                      <div key={p.id} className={`${bgCard} rounded-xl p-4 mb-3 border-l-4 border-green-500`}>
+                      <div key={p.id} onClick={() => setPedidoSeleccionado(p)} className={`${bgCard} rounded-xl p-4 mb-3 border-l-4 border-green-500 cursor-pointer hover:shadow-lg transition-all`}>
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="font-bold">Pedido #{p.id?.slice(-6)}</div>
@@ -349,39 +343,25 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
                           </div>
                           <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">Listo</span>
                         </div>
-                        <div className={`${bgLight} rounded-lg p-2 mt-2`}>
-                          {p.pedido_productos?.map((item: any, idx: number) => (
-                            <div key={idx} className="text-sm text-slate-600">{item.cantidad}x {item.productos?.nombre}</div>
-                          ))}
-                        </div>
-                        <div className="font-bold text-violet-600 mt-2">{fmtCOP(p.total)}</div>
+                        <div className="text-slate-400 text-xs mt-2">Clic para ver productos</div>
                       </div>
                     ))}
                   </div>
                 )}
 
-                {pedidosEnPreparacion.length > 0 && (
+                {pedidosEnCamino.length > 0 && (
                   <div className="mb-6">
-                    <div className="font-bold text-yellow-600 mb-3">🔄 En preparación ({pedidosEnPreparacion.length})</div>
-                    {pedidosEnPreparacion.map(p => (
-                      <div key={p.id} className={`${bgCard} rounded-xl p-4 mb-3 border-l-4 border-yellow-500`}>
+                    <div className="font-bold text-violet-600 mb-3">🚴 En camino ({pedidosEnCamino.length})</div>
+                    {pedidosEnCamino.map(p => (
+                      <div key={p.id} onClick={() => setPedidoSeleccionado(p)} className={`${bgCard} rounded-xl p-4 mb-3 border-l-4 border-blue-500 cursor-pointer hover:shadow-lg transition-all`}>
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="font-bold">Pedido #{p.id?.slice(-6)}</div>
                             <div className="text-slate-500 text-xs">{fmtFecha(p.created_at)}</div>
                           </div>
-                          <span className="bg-yellow-500 text-white px-3 py-1 rounded-full text-xs font-bold">En preparación</span>
+                          <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-bold">🚴 En camino</span>
                         </div>
-                        <div className={`${bgLight} rounded-lg p-2 mt-2`}>
-                          {p.pedido_productos?.map((item: any, idx: number) => (
-                            <div key={idx} className="text-sm text-slate-600">{item.cantidad}x {item.productos?.nombre}</div>
-                          ))}
-                        </div>
-                        <button 
-                          className="w-full mt-3 bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700"
-                          onClick={() => marcarListo(p.id)}>
-                          Marcar como listo
-                        </button>
+                        <div className="text-slate-400 text-xs mt-2">Clic para ver productos</div>
                       </div>
                     ))}
                   </div>
@@ -391,7 +371,7 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
                   <div className="mb-6">
                     <div className="font-bold text-violet-600 mb-3">✅ Entregados ({pedidosEntregados.length})</div>
                     {pedidosEntregados.map(p => (
-                      <div key={p.id} className={`${bgCard} rounded-xl p-4 mb-3 shadow-sm border-l-4 border-green-500`}>
+                      <div key={p.id} onClick={() => setPedidoSeleccionado(p)} className={`${bgCard} rounded-xl p-4 mb-3 shadow-sm border-l-4 border-green-500 cursor-pointer hover:shadow-lg transition-all`}>
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="font-bold">Pedido #{p.id?.slice(-6)}</div>
@@ -399,12 +379,7 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
                           </div>
                           <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold">{p.tipo_venta === "presencial" ? "💰 Presencial" : "Entregado"}</span>
                         </div>
-                        <div className={`${bgLight} rounded-lg p-2 mt-2`}>
-                          {p.pedido_productos?.map((item: any, idx: number) => (
-                            <div key={idx} className="text-sm text-slate-600">{item.cantidad}x {item.productos?.nombre}</div>
-                          ))}
-                        </div>
-                        <div className="font-bold text-violet-600 mt-2">{fmtCOP(p.total)}</div>
+                        <div className="text-slate-400 text-xs mt-2">Clic para ver productos</div>
                       </div>
                     ))}
                   </div>
@@ -414,7 +389,7 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
                   <div className="mb-6">
                     <div className="font-bold text-violet-600 mb-3">🆕 Nuevos ({pedidosPendientes.length})</div>
                     {pedidosPendientes.map(p => (
-                      <div key={p.id} className={`${bgCard} rounded-xl p-4 mb-3 shadow-sm border-l-4 border-violet-500`}>
+                      <div key={p.id} onClick={() => setPedidoSeleccionado(p)} className={`${bgCard} rounded-xl p-4 mb-3 shadow-sm border-l-4 border-violet-500 cursor-pointer hover:shadow-lg transition-all`}>
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="font-bold">Pedido #{p.id?.slice(-6)}</div>
@@ -422,21 +397,71 @@ export default function PanelFarmaceutico({ perfil, cerrarSesion, seccion: secci
                           </div>
                           <span className="bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-bold">Nuevo</span>
                         </div>
-                        <div className={`${bgLight} rounded-lg p-2 mt-2`}>
-                          {p.pedido_productos?.map((item: any, idx: number) => (
-                            <div key={idx} className="text-sm text-slate-600">{item.cantidad}x {item.productos?.nombre}</div>
-                          ))}
-                        </div>
-                        <button 
-                          className="w-full mt-3 bg-yellow-500 text-white py-2 rounded-lg font-semibold hover:bg-yellow-600"
-                          onClick={() => iniciarPreparacion(p.id)}>
-                          Iniciar preparación
-                        </button>
+                        <div className="text-slate-400 text-xs mt-2">Clic para ver productos</div>
                       </div>
                     ))}
                   </div>
                 )}
               </>
+            )}
+
+            {pedidoSeleccionado && (
+              <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setPedidoSeleccionado(null)}>
+                <div className={`${bgCard} rounded-2xl p-5 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto scrollbar-hide`} onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg sm:text-xl font-bold text-violet-600">Pedido #{pedidoSeleccionado.id?.slice(-6)}</h2>
+                    <button onClick={() => setPedidoSeleccionado(null)} className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${modoOscuro ? "bg-slate-700 hover:bg-slate-600 text-slate-500" : "bg-slate-100 hover:bg-slate-200 text-slate-500"}`}>✕</button>
+                  </div>
+
+                  <div className="space-y-3 mb-4">
+                    <div className="flex justify-between text-sm"><span className="text-slate-500">Estado</span><span className={`px-2 py-0.5 rounded-full text-xs font-bold text-white ${estadoLabel[pedidoSeleccionado.estado] || "bg-slate-500"}`}>{estadoLabel[pedidoSeleccionado.estado] || pedidoSeleccionado.estado}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-slate-500">Fecha</span><span className="font-bold">{fmtFecha(pedidoSeleccionado.created_at)}</span></div>
+                    {pedidoSeleccionado.codigo_verificacion && (
+                      <div className={`text-center py-3 rounded-xl ${modoOscuro ? "bg-violet-900/40" : "bg-violet-100"}`}>
+                        <div className={`text-xs font-semibold ${modoOscuro ? "text-violet-300" : "text-violet-600"}`}>Código de entrega</div>
+                        <div className={`text-3xl font-bold ${modoOscuro ? "text-violet-300" : "text-violet-700"}`}>{pedidoSeleccionado.codigo_verificacion}</div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={`border-t pt-3 mb-4 ${modoOscuro ? "border-slate-600" : "border-slate-200"}`}>
+                    <div className="font-bold text-sm mb-2">Productos a preparar</div>
+                    {pedidoSeleccionado.pedido_productos?.map((item: any, i: number) => (
+                      <div key={i} className="flex justify-between text-sm py-1.5">
+                        <span>{item.productos?.nombre}</span>
+                        <span className="font-bold">x{item.cantidad}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className={`border-t pt-3 ${modoOscuro ? "border-slate-600" : "border-slate-200"}`}>
+                    <div className="flex justify-between font-bold text-lg"><span>Total</span><span className="text-violet-600">{fmtCOP(pedidoSeleccionado.total)}</span></div>
+                  </div>
+
+                  {(pedidoSeleccionado.estado === "pendiente" || pedidoSeleccionado.estado === "en_preparacion") && (
+                    <button
+                      className={`w-full mt-4 py-3 rounded-xl font-bold text-white transition-all ${pedidoSeleccionado.estado === "pendiente" ? "bg-yellow-500 hover:bg-yellow-600" : "bg-green-600 hover:bg-green-700"}`}
+                      onClick={() => {
+                        if (pedidoSeleccionado.estado === "pendiente") {
+                          supabase.from("pedidos").update({ estado: "en_preparacion" }).eq("id", pedidoSeleccionado.id).then(() => {
+                            show("Preparación iniciada");
+                            cargarPedidos();
+                            setPedidoSeleccionado(null);
+                          });
+                        } else {
+                          supabase.from("pedidos").update({ estado: "listo" }).eq("id", pedidoSeleccionado.id).then(() => {
+                            show("Pedido marcado como listo!");
+                            cargarPedidos();
+                            setPedidoSeleccionado(null);
+                          });
+                        }
+                      }}
+                    >
+                      {pedidoSeleccionado.estado === "pendiente" ? "🔄 Iniciar preparación" : "✅ Marcar como listo"}
+                    </button>
+                  )}
+                </div>
+              </div>
             )}
           </>
         )}
