@@ -619,6 +619,7 @@ function VentaPresencial({ productos, bgCard, bgLight, bgInput, perfil, recargar
       if (nuevaCantidad <= 0) {
         return prev.filter(p => p.id !== id);
       }
+      if (nuevaCantidad > item.stock) { show("No hay más stock", "warn"); return prev; }
       return prev.map(p => p.id === id ? { ...p, cantidad: nuevaCantidad } : p);
     });
   };
@@ -674,6 +675,15 @@ function VentaPresencial({ productos, bgCard, bgLight, bgInput, perfil, recargar
 
     setProcesando(true);
     await new Promise(r => setTimeout(r, 1500));
+
+    for (const item of carrito) {
+      const { data: prodActual } = await supabase.from("productos").select("stock").eq("id", item.id).single();
+      if (!prodActual || prodActual.stock < item.cantidad) {
+        show(`Stock insuficiente de ${item.nombre}. Disponible: ${prodActual?.stock || 0}`, "error");
+        setProcesando(false);
+        return;
+      }
+    }
 
     console.log("perfil del farmaceutico:", perfil);
     console.log("pharmacy_id:", perfil?.pharmacy_id);
@@ -777,7 +787,7 @@ function VentaPresencial({ productos, bgCard, bgLight, bgInput, perfil, recargar
                   <div className="flex gap-1 bg-violet-100 rounded-full px-2 py-1">
                     <button className="w-7 h-7 rounded-full bg-white shadow text-lg font-bold text-slate-600 hover:bg-red-500 hover:text-white transition-all" onClick={() => cambiarCantidad(item.id, -1)}>-</button>
                     <span className="w-8 text-center font-bold text-violet-600">{item.cantidad}</span>
-                    <button className="w-7 h-7 rounded-full bg-white shadow text-lg font-bold text-slate-600 hover:bg-violet-500 hover:text-white transition-all" onClick={() => cambiarCantidad(item.id, 1)}>+</button>
+                    <button className={`w-7 h-7 rounded-full shadow text-lg font-bold text-slate-600 transition-all ${item.cantidad >= item.stock ? "opacity-40 cursor-not-allowed bg-slate-200" : "bg-white shadow hover:bg-violet-500 hover:text-white"}`} disabled={item.cantidad >= item.stock} onClick={() => cambiarCantidad(item.id, 1)}>+</button>
                   </div>
                 </div>
               </div>
