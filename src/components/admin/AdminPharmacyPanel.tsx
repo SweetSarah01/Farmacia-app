@@ -162,7 +162,7 @@ export default function AdminPharmacyPanel({ perfil, cerrarSesion, seccion, setS
     
     // Cargar pedidos de esta pharmacy
     console.log("Cargando pedidos con pharmacy_id:", perfil.pharmacy_id);
-    const { data: peds, error: pedsError } = await supabase.from("pedidos").select("*, pedido_productos(*, productos(nombre)), profiles:cliente_id(nombre, telefono, direccion, barrio, ciudad)").eq("pharmacy_id", perfil.pharmacy_id).order("created_at", { ascending: false });
+    const { data: peds, error: pedsError } = await supabase.from("pedidos").select("*, pedido_productos(*, productos(nombre))").eq("pharmacy_id", perfil.pharmacy_id).order("created_at", { ascending: false });
     console.log("Pedidos cargados:", peds, "Error:", pedsError);
     setPedidos(peds || []);
     
@@ -539,7 +539,7 @@ if (cargando) {
           ) : (
             <div className="space-y-3">
               {pedidosActivos.map(p => {
-                const clienteNombre = p.cliente_nombre || p.profiles?.nombre || "Cliente";
+                const clienteNombre = p.cliente_nombre || "Cliente";
                 return (
                   <div
                     key={p.id}
@@ -586,7 +586,7 @@ if (cargando) {
                 <div className="space-y-3 mb-4">
                   <div className="flex justify-between text-sm"><span className="text-slate-500">Estado</span><span className={`px-2 py-0.5 rounded-full text-xs font-bold text-white ${estadoColors[pedidoSeleccionado.estado] || "bg-slate-500"}`}>{estadoLabel[pedidoSeleccionado.estado] || pedidoSeleccionado.estado}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-slate-500">Fecha</span><span className="font-bold">{fmtFecha(pedidoSeleccionado.created_at)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">Cliente</span><span className="font-bold">{pedidoSeleccionado.cliente_nombre || pedidoSeleccionado.profiles?.nombre || "N/A"}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Cliente</span><span className="font-bold">{pedidoSeleccionado.cliente_nombre || "N/A"}</span></div>
                   {pedidoSeleccionado.cliente_telefono && (
                     <div className="flex justify-between text-sm"><span className="text-slate-500">Teléfono</span><span className="font-bold">{pedidoSeleccionado.cliente_telefono}</span></div>
                   )}
@@ -612,13 +612,8 @@ if (cargando) {
                   <div className={`border-t pt-3 mb-4 ${modoOscuro ? "border-slate-600" : "border-slate-200"}`}>
                     <div className="font-bold text-sm mb-2">Dirección de entrega</div>
                     <div className={`text-sm ${modoOscuro ? "text-slate-300" : "text-slate-700"}`}>
-                      {pedidoSeleccionado.profiles?.direccion || "No registrada"}
+                      {pedidoSeleccionado.direccion_entrega || "No registrada"}
                     </div>
-                    {pedidoSeleccionado.profiles?.barrio && (
-                      <div className={`text-xs mt-1 ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>
-                        Barrio: {pedidoSeleccionado.profiles.barrio} · {pedidoSeleccionado.profiles?.ciudad || ""}
-                      </div>
-                    )}
                   </div>
                 )}
 
