@@ -44,6 +44,9 @@ const glassCard = modoOscuro
   const [editandoUsuario, setEditandoUsuario] = useState<any>(null);
   const [nuevoRol, setNuevoRol] = useState("");
   const [tab, setTab] = useState("dashboard");
+  const [farmaciaSeleccionada, setFarmaciaSeleccionada] = useState<any>(null);
+  const [busquedaFarmacia, setBusquedaFarmacia] = useState("");
+  const [filtroEstado, setFiltroEstado] = useState("");
 
   useEffect(() => {
     cargarDatos();
@@ -249,6 +252,73 @@ const aprobarPharmacy = async (id: string) => {
         </div>
       )}
 
+      {farmaciaSeleccionada && (
+        <div className="fixed inset-0 bg-black/70 flex items-end sm:items-center justify-center z-50 p-4">
+          <div className={`${bgCard} rounded-t-3xl sm:rounded-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto`}>
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-bold">🏪 {farmaciaSeleccionada.nombre}</h2>
+              <button 
+                onClick={() => setFarmaciaSeleccionada(null)}
+                className="text-slate-500 hover:text-slate-300 text-2xl"
+              >✕</button>
+            </div>
+            
+            <div className="space-y-3 text-sm">
+              <div><span className="font-semibold">NIT:</span> {farmaciaSeleccionada.nit}</div>
+              <div><span className="font-semibold">Dirección:</span> {farmaciaSeleccionada.direccion}, {farmaciaSeleccionada.barrio}, {farmaciaSeleccionada.ciudad}</div>
+              <div><span className="font-semibold">Teléfono:</span> {farmaciaSeleccionada.telefono}</div>
+              <div><span className="font-semibold">Email:</span> {farmaciaSeleccionada.email}</div>
+              <div><span className="font-semibold">Responsable:</span> {farmaciaSeleccionada.responsable_nombre}</div>
+              <div><span className="font-semibold">Horario:</span> {farmaciaSeleccionada.hora_apertura || "N/A"} - {farmaciaSeleccionada.hora_cierre || "N/A"}</div>
+              <div><span className="font-semibold">Estado:</span> 
+                <span className={`ml-2 px-2 py-1 rounded-full text-xs font-bold ${
+                  farmaciaSeleccionada.estado === "aprobado" ? "bg-green-600 text-white" :
+                  farmaciaSeleccionada.estado === "rechazado" ? "bg-red-600 text-white" :
+                  "bg-yellow-600 text-white"
+                }`}>
+                  {farmaciaSeleccionada.estado.toUpperCase()}
+                </span>
+              </div>
+              <div><span className="font-semibold">Fecha solicitud:</span> {fmtFecha(farmaciaSeleccionada.created_at)}</div>
+              {farmaciaSeleccionada.fecha_aprobacion && (
+                <div><span className="font-semibold">Fecha aprobación:</span> {fmtFecha(farmaciaSeleccionada.fecha_aprobacion)}</div>
+              )}
+              {farmaciaSeleccionada.motivo_rechazo && (
+                <div className="p-2 bg-red-100 rounded-lg text-red-700">
+                  <span className="font-semibold">Motivo rechazo:</span> {farmaciaSeleccionada.motivo_rechazo}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-2 mt-6">
+              <button 
+                onClick={() => setFarmaciaSeleccionada(null)}
+                className="flex-1 bg-slate-500 text-white py-2 rounded-lg font-semibold"
+              >Cerrar</button>
+              
+              {farmaciaSeleccionada.estado === "pendiente" && (
+                <>
+                  <button 
+                    onClick={() => { 
+                      aprobarPharmacy(farmaciaSeleccionada.id); 
+                      setFarmaciaSeleccionada(null); 
+                    }}
+                    className="flex-1 bg-green-600 text-white py-2 rounded-lg font-semibold"
+                  >✅ Aprobar</button>
+                  <button 
+                    onClick={() => { 
+                      setRechazoModal(farmaciaSeleccionada); 
+                      setFarmaciaSeleccionada(null); 
+                    }}
+                    className="flex-1 bg-red-600 text-white py-2 rounded-lg font-semibold"
+                  >❌ Rechazar</button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto p-4 sm:p-6">
         <h1 className="text-xl sm:text-2xl font-bold text-violet-600 mb-4 sm:mb-6">🌐 Panel Super Administrador</h1>
         
@@ -366,14 +436,56 @@ const aprobarPharmacy = async (id: string) => {
           <button onClick={cargarDatos} className="text-violet-500 text-sm hover:underline">🔄 Actualizar</button>
         </h2>
         
+        <div className="mb-4 flex flex-col sm:flex-row gap-2">
+          <input
+            type="text"
+            placeholder="Buscar por nombre..."
+            value={busquedaFarmacia}
+            onChange={e => setBusquedaFarmacia(e.target.value)}
+            className={`flex-1 px-4 py-2 rounded-lg border text-sm ${bgInput}`}
+          />
+          <select
+            value={filtroEstado}
+            onChange={e => setFiltroEstado(e.target.value)}
+            className={`px-4 py-2 rounded-lg border text-sm ${bgInput}`}
+          >
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendiente</option>
+            <option value="aprobado">Aprobado</option>
+            <option value="rechazado">Rechazado</option>
+          </select>
+          {filtroEstado && (
+            <button
+              onClick={() => setFiltroEstado("")}
+              className="text-sm text-red-500 hover:text-red-400 min-h-[36px]"
+            >
+              Limpiar filtro
+            </button>
+          )}
+        </div>
+
+        <p className={`text-xs mb-4 italic ${modoOscuro ? "text-slate-500" : "text-slate-400"}`}>
+          Haz clic en una farmacia para ver todos sus detalles.
+        </p>
+        
         {cargando ? (
           <div className="text-center py-12 text-slate-500">Cargando...</div>
         ) : pharmacies.length === 0 ? (
           <div className={`text-center py-12 text-slate-500 ${bgCard} rounded-xl`}>No hay solicitudes</div>
         ) : (
           <div className="space-y-3">
-            {pharmacies.map(p => (
-              <div key={p.id} className={`${bgCard} rounded-xl p-5 shadow-sm`}>
+            {pharmacies
+              .filter(p => {
+                if (busquedaFarmacia && !p.nombre?.toLowerCase().includes(busquedaFarmacia.toLowerCase())) return false;
+                if (filtroEstado && p.estado !== filtroEstado) return false;
+                return true;
+              })
+              .map(p => (
+              <div 
+                key={p.id} 
+                className={`${bgCard} rounded-xl p-5 shadow-sm cursor-pointer hover:shadow-md transition-shadow`}
+                onClick={() => setFarmaciaSeleccionada(p)}
+              >
                 <div className="flex justify-between items-start">
                   <div className="text-left">
                     <div className="font-bold text-lg">{p.nombre}</div>
@@ -393,12 +505,21 @@ const aprobarPharmacy = async (id: string) => {
                     </span>
                     {p.estado === "pendiente" && (
                       <div className="flex gap-2 mt-2">
-                        <button className="bg-red-500 text-white px-4 py-1 rounded-lg text-sm" onClick={() => setRechazoModal(p)}>❌ Rechazar</button>
-                        <button className="bg-green-600 text-white px-4 py-1 rounded-lg text-sm" onClick={() => aprobarPharmacy(p.id)}>✅ Aprobar</button>
+                        <button 
+                          className="bg-red-500 text-white px-4 py-1 rounded-lg text-sm" 
+                          onClick={(e) => { e.stopPropagation(); setRechazoModal(p); }}
+                        >❌ Rechazar</button>
+                        <button 
+                          className="bg-green-600 text-white px-4 py-1 rounded-lg text-sm" 
+                          onClick={(e) => { e.stopPropagation(); aprobarPharmacy(p.id); }}
+                        >✅ Aprobar</button>
                       </div>
                     )}
                     {p.estado !== "pendiente" && (
-                      <button className="bg-red-600 text-white px-3 py-1 rounded-lg text-sm mt-2" onClick={() => eliminarPharmacy(p.id, p.nombre)}>🗑️ Eliminar</button>
+                      <button 
+                        className="bg-red-600 text-white px-3 py-1 rounded-lg text-sm mt-2" 
+                        onClick={(e) => { e.stopPropagation(); eliminarPharmacy(p.id, p.nombre); }}
+                      >🗑️ Eliminar</button>
                     )}
                   </div>
                 </div>
