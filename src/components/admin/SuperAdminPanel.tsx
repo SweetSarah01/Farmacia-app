@@ -49,13 +49,6 @@ const glassCard = modoOscuro
     cargarDatos();
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      cargarDatos();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
   const cargarDatos = async () => {
     setCargando(true);
     
