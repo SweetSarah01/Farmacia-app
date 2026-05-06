@@ -533,9 +533,18 @@ if (cargando) {
 
       return (
         <>
-          <h2 className="text-xl font-bold mb-4">📋 Pedidos</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">📋 Pedidos</h2>
+            <div className={`text-sm ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>
+              {pedidosActivos.length} activo{pedidosActivos.length !== 1 ? "s" : ""} · {pedidos.length} total{pedidos.length !== 1 ? "es" : ""}
+            </div>
+          </div>
           {pedidosActivos.length === 0 ? (
-            <div className={`text-center py-12 text-slate-500 ${bgCard} rounded-xl`}>No hay pedidos activos</div>
+            <div className={`text-center py-12 ${bgCard} rounded-xl`}>
+              <div className="text-4xl mb-3">📭</div>
+              <div className="font-bold text-lg mb-1">No hay pedidos activos</div>
+              <div className="text-slate-500 text-sm">Los pedidos entregados y cancelados aparecen en el Historial</div>
+            </div>
           ) : (
             <div className="space-y-3">
               {pedidosActivos.map(p => {
