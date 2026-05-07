@@ -1,475 +1,489 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabaseClient';
-import { useTheme } from '../../App';
-import { fmtCOP, fmtFecha } from '../../supabaseClient';
+import { useState, useEffect } from "react";
+import { supabase } from "../../supabaseClient";
+import { useTheme } from "../../App";
 
-export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => void }) {
+function fmtCOP(price: number) {
+  return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(price);
+}
+
+function fmtFecha(date: string) {
+  return new Date(date).toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: any) {
   const { modoOscuro } = useTheme();
-  const [fechaInicio, setFechaInicio] = useState('');
-  const [datosDashboard, setDatosDashboard] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const [farmacias, setFarmacias] = useState<any[]>([]);
+  const bgMain = modoOscuro ? "min-h-screen bg-slate-900 text-white" : "min-h-screen bg-slate-100 text-slate-800";
+  const bgCard = modoOscuro
+    ? "bg-slate-800 border-l-4 border-violet-500 rounded-xl p-3"
+    : "bg-white border-l-4 border-violet-400 rounded-xl p-3";
+  const bgLight = modoOscuro ? "bg-slate-800" : "bg-slate-100";
+  const bgInput = modoOscuro ? "bg-slate-700 border-violet-500/30" : "bg-white border-violet-300";
+  const statColors = {
+    primary: "text-slate-500",
+    success: "text-slate-500",
+    warning: "text-slate-500",
+    danger: "text-slate-500",
+    secondary: "text-slate-500"
+  };
+  const glassCard = modoOscuro
+    ? "rounded-2xl p-4 text-center border border-violet-500/50 bg-violet-950/50 backdrop-blur hover:bg-violet-900/70 transition-all"
+    : "rounded-2xl p-4 text-center border border-violet-300 bg-violet-100 shadow-md hover:shadow-lg transition-all";
+  
+  const [pharmacies, setPharmacies] = useState<any[]>([]);
   const [usuarios, setUsuarios] = useState<any[]>([]);
-  const [farmaciaSeleccionada, setFarmaciaSeleccionada] = useState<any>(null);
+  const [stats, setStats] = useState({
+    totalPharmacies: 0, approved: 0, pending: 0, rejected: 0,
+    totalUsers: 0, superAdmins: 0, admins: 0, farmaceuticos: 0, domiciliario: 0, clientes: 0,
+    totalPedidos: 0, pedidosPendientes: 0, pedidosEnCamino: 0, pedidosEntregados: 0, pedidosCancelados: 0,
+    totalProductos: 0
+  });
+  const [cargando, setCargando] = useState(true);
+  const [rechazoModal, setRechazoModal] = useState<any>(null);
+  const [motivoRechazo, setMotivoRechazo] = useState("");
   const [editandoUsuario, setEditandoUsuario] = useState<any>(null);
-  const [rechazoModal, setRechazoModal] = useState<{ id: string; tipo: string } | null>(null);
-  const [filtroEstado, setFiltroEstado] = useState('');
-  const [filtroBusqueda, setFiltroBusqueda] = useState('');
-
-  const cargarDatos = async (filtroFechaInicio?: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      let query = supabase.from('pedidos').select('*', { count: 'exact' });
-      
-      if (filtroFechaInicio) {
-        query = query.gte('created_at', filtroFechaInicio);
-      }
-      
-      const { data: pedidos, error: errorPedidos } = await query;
-      if (errorPedidos) throw errorPedidos;
-
-      const totalVentas = pedidos?.reduce((sum, p) => sum + (p.total || 0), 0) || 0;
-      const pedidosPendientes = pedidos?.filter(p => p.estado === 'pendiente').length || 0;
-      const pedidosEntregados = pedidos?.filter(p => p.estado === 'entregado').length || 0;
-
-      setDatosDashboard({
-        totalPedidos: pedidos?.length || 0,
-        totalVentas,
-        pedidosPendientes,
-        pedidosEntregados,
-        pedidos: pedidos?.slice(0, 10) || []
-      });
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const cargarFarmacias = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('rol', 'admin');
-      if (error) throw error;
-      setFarmacias(data || []);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const cargarUsuarios = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setUsuarios(data || []);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
+  const [nuevoRol, setNuevoRol] = useState("");
+  const [tab, setTab] = useState("dashboard");
 
   useEffect(() => {
     cargarDatos();
-    cargarFarmacias();
-    cargarUsuarios();
   }, []);
 
-  const resetearFiltros = () => {
-    setFechaInicio('');
+  useEffect(() => {
+    const interval = setInterval(() => {
+      cargarDatos();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const cargarDatos = async () => {
+    setCargando(true);
+    const { data: pharms } = await supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
+    setPharmacies(pharms || []);
+    const { data: users } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
+    const pharmMap: Record<string, string> = {};
+    (pharms || []).forEach(p => { pharmMap[p.id] = p.nombre; });
+    const usersConFarmacia = (users || []).map(u => ({
+      ...u,
+      pharmacy_nombre: u.pharmacy_id ? pharmMap[u.pharmacy_id] || null : null
+    }));
+    setUsuarios(usersConFarmacia);
+    const { data: pedidos } = await supabase.from("pedidos").select("*");
+    const { data: productos } = await supabase.from("productos").select("*");
+    const approved = (pharms || []).filter(p => p.estado === "aprobado").length;
+    const pending = (pharms || []).filter(p => p.estado === "pendiente").length;
+    const rejected = (pharms || []).filter(p => p.estado === "rechazado").length;
+    const superAdmins = (users || []).filter(u => u.rol === "superadmin").length;
+    const admins = (users || []).filter(u => u.rol === "admin").length;
+    const farmaceuticos = (users || []).filter(u => u.rol === "farmaceutico").length;
+    const domiciliario = (users || []).filter(u => u.rol === "domiciliario").length;
+    const clientes = (users || []).filter(u => u.rol === "cliente").length;
+    const pedidosPendientes = (pedidos || []).filter(p => p.estado === "pendiente").length;
+    const pedidosEnCamino = (pedidos || []).filter(p => p.estado === "en_camino").length;
+    const pedidosEntregados = (pedidos || []).filter(p => p.estado === "entregado").length;
+    const pedidosCancelados = (pedidos || []).filter(p => p.estado === "cancelado").length;
+    setStats({
+      totalPharmacies: pharms?.length || 0,
+      approved, pending, rejected,
+      totalUsers: users?.length || 0,
+      superAdmins, admins, farmaceuticos, domiciliario, clientes,
+      totalPedidos: pedidos?.length || 0,
+      pedidosPendientes, pedidosEnCamino, pedidosEntregados, pedidosCancelados,
+      totalProductos: productos?.length || 0
+    });
+    setCargando(false);
+  };
+
+  const aprobarPharmacy = async (id: string) => {
+    const pharmacy = pharmacies.find(p => p.id === id);
+    if (!pharmacy) return;
+    const { error: updateError } = await supabase.from("pharmacies").update({
+      estado: "aprobado",
+      fecha_aprobacion: new Date().toISOString()
+    }).eq("id", id);
+    if (updateError) {
+      alert("Error al aprobar: " + updateError.message);
+      return;
+    }
+    alert(`✅ Farmacia "${pharmacy.nombre}" aprobada!\n\nEl administrador puede iniciar sesión.`);
     cargarDatos();
   };
 
-  const aprobarFarmacia = async (id: string) => {
+  const rechazarPharmacy = async () => {
+    if (!rechazoModal || !motivoRechazo) {
+      alert("Escribe el motivo del rechazo");
+      return;
+    }
+    await supabase.from("pharmacies").update({
+      estado: "rechazado",
+      motivo_rechazo: motivoRechazo
+    }).eq("id", rechazoModal.id);
+    alert("Farmacia rechazada ❌");
+    setRechazoModal(null);
+    setMotivoRechazo("");
+    cargarDatos();
+  };
+
+  const eliminarPharmacy = async (id: string, nombre: string) => {
+    if (!window.confirm(`¿Eliminar la pharmacy "${nombre}"? Esto eliminará TODO.`)) return;
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ estado: 'aprobada' })
-        .eq('id', id);
-      if (error) throw error;
-      cargarFarmacias();
+      const { data: productos } = await supabase.from("productos").select("id").eq("pharmacy_id", id);
+      if (productos && productos.length > 0) {
+        for (const p of productos) {
+          await supabase.from("pedido_productos").delete().eq("producto_id", p.id);
+        }
+        await supabase.from("productos").delete().eq("pharmacy_id", id);
+      }
+      const { data: pedidos } = await supabase.from("pedidos").select("id").eq("pharmacy_id", id);
+      if (pedidos && pedidos.length > 0) {
+        for (const ped of pedidos) {
+          await supabase.from("pedido_productos").delete().eq("pedido_id", ped.id);
+        }
+        await supabase.from("pedidos").delete().eq("pharmacy_id", id);
+      }
+      await supabase.from("profiles").delete().eq("pharmacy_id", id);
+      const { error } = await supabase.from("pharmacies").delete().eq("id", id);
+      if (error) {
+        alert("Error: " + error.message);
+      } else {
+        alert("Farmacia eliminada ✅");
+        cargarDatos();
+      }
     } catch (err: any) {
-      setError(err.message);
+      alert("Error: " + err.message);
     }
   };
 
-  const rechazarFarmacia = async (id: string, motivo: string) => {
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ estado: 'rechazada' })
-        .eq('id', id);
-      if (error) throw error;
-      setRechazoModal(null);
-      cargarFarmacias();
-    } catch (err: any) {
-      setError(err.message);
+  const cambiarRol = async (userId: string) => {
+    console.log("🎯 Cambiar rol llamado para:", userId, "nuevo rol:", nuevoRol);
+    if (!nuevoRol || !userId) {
+      console.log("❌ Faltan datos");
+      return;
     }
+    const { error } = await supabase.from("profiles").update({ rol: nuevoRol }).eq("id", userId);
+    console.log("✅ Resultado:", error);
+    setEditandoUsuario(null);
+    setNuevoRol("");
+    cargarDatos();
   };
 
-  const actualizarUsuario = async (id: string, datos: any) => {
+  const eliminarUsuario = async (userId: string) => {
+    if (!confirm("¿Eliminar este usuario? También se eliminarán sus pedidos.")) return;
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update(datos)
-        .eq('id', id);
-      if (error) throw error;
-      setEditandoUsuario(null);
-      cargarUsuarios();
+      const { data: pedidos } = await supabase.from("pedidos").select("id")
+        .or(`cliente_id.eq.${userId},domiciliario_id.eq.${userId}`);
+      if (pedidos && pedidos.length > 0) {
+        for (const ped of pedidos) {
+          await supabase.from("pedido_productos").delete().eq("pedido_id", ped.id);
+        }
+        await supabase.from("pedidos").delete().or(`cliente_id.eq.${userId},domiciliario_id.eq.${userId}`);
+      }
+      const { error } = await supabase.from("profiles").delete().eq("id", userId);
+      if (error) {
+        alert("Error: " + error.message);
+      } else {
+        alert("Usuario eliminado");
+        cargarDatos();
+      }
     } catch (err: any) {
-      setError(err.message);
+      alert("Error: " + err.message);
     }
   };
-
-  const eliminarUsuario = async (id: string) => {
-    if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', id);
-      if (error) throw error;
-      cargarUsuarios();
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const farmaciasFiltradas = farmacias.filter(f => {
-    if (filtroEstado && f.estado !== filtroEstado) return false;
-    if (filtroBusqueda) {
-      const search = filtroBusqueda.toLowerCase();
-      return f.nombre?.toLowerCase().includes(search) || f.email?.toLowerCase().includes(search);
-    }
-    return true;
-  });
 
   return (
-    <div className={modoOscuro ? "bg-slate-900" : "bg-slate-50"}>
-      <div className="min-h-screen p-6">
-        <header className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-white">Super Admin Panel</h1>
-          <button
-            onClick={cerrarSesion}
-            className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition"
-          >
-            Cerrar Sesión
-          </button>
-        </header>
-
-        {error && (
-          <div className="bg-red-500/20 border border-red-500/30 text-red-100 p-4 rounded-lg mb-6">
-            {error}
-          </div>
-        )}
-
-        <section className="mb-12">
-          <h2 className="text-xl font-semibold text-white mb-6">Dashboard</h2>
-          <div className="bg-white/10 backdrop-blur-sm p-6 rounded-xl border border-white/20">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div>
-                <label className="block text-sm font-medium text-white mb-2">Fecha inicio</label>
-                <input
-                  type="date"
-                  value={fechaInicio}
-                  onChange={(e) => setFechaInicio(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+    <div className={`min-h-screen font-sans ${bgMain}`}>
+      {rechazoModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className={`${bgCard} rounded-2xl p-6 max-w-md`}>
+            <h2 className="text-xl font-bold mb-4">❌ Rechazar Farmacia</h2>
+            <p className="text-slate-500 mb-4">Farmacia: {rechazoModal.nombre}</p>
+            <textarea
+              placeholder="Motivo del rechazo *"
+              value={motivoRechazo}
+              onChange={e => setMotivoRechazo(e.target.value)}
+              className={`w-full px-4 py-3 rounded-lg border ${bgInput} h-24`}
+            />
+            <div className="flex gap-2 mt-4">
+              <button className="flex-1 bg-slate-500 text-white py-2 rounded-lg" onClick={() => setRechazoModal(null)}>Cancelar</button>
+              <button className="flex-1 bg-red-600 text-white py-2 rounded-lg" onClick={rechazarPharmacy}>Confirmar</button>
             </div>
-
-            <div className="flex flex-wrap gap-4 mb-8">
-              <button
-                onClick={() => cargarDatos(fechaInicio)}
-                className="px-6 py-2.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition font-medium"
-              >
-                Aplicar Filtro
-              </button>
-              <button
-                onClick={() => cargarDatos()}
-                className="px-6 py-2.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition font-medium"
-              >
-                Recargar Datos
-              </button>
-              <button
-                onClick={() => resetearFiltros()}
-                className="px-6 py-2.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition font-medium"
-              >
-                Resetear Filtros
-              </button>
-            </div>
-
-            {loading && (
-              <div className="text-center py-8">
-                <p className="text-white text-lg">Cargando datos...</p>
-              </div>
-            )}
-
-            {!loading && !error && datosDashboard && (
-              <div className="text-white">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-white/5 p-4 rounded-lg">
-                    <p className="text-sm text-white/60">Total Pedidos</p>
-                    <p className="text-2xl font-bold">{datosDashboard.totalPedidos}</p>
-                  </div>
-                  <div className="bg-white/5 p-4 rounded-lg">
-                    <p className="text-sm text-white/60">Ventas Totales</p>
-                    <p className="text-2xl font-bold">{fmtCOP(datosDashboard.totalVentas)}</p>
-                  </div>
-                  <div className="bg-white/5 p-4 rounded-lg">
-                    <p className="text-sm text-white/60">Pendientes</p>
-                    <p className="text-2xl font-bold">{datosDashboard.pedidosPendientes}</p>
-                  </div>
-                  <div className="bg-white/5 p-4 rounded-lg">
-                    <p className="text-sm text-white/60">Entregados</p>
-                    <p className="text-2xl font-bold">{datosDashboard.pedidosEntregados}</p>
-                  </div>
-                </div>
-                
-                <h3 className="text-lg font-semibold mb-4">Últimos Pedidos</h3>
-                <div className="space-y-2">
-                  {datosDashboard.pedidos.map((pedido: any) => (
-                    <div key={pedido.id} className="bg-white/5 p-3 rounded flex justify-between items-center">
-                      <div>
-                        <p className="font-medium">{pedido.id.slice(0, 8)}</p>
-                        <p className="text-sm text-white/60">{fmtFecha(pedido.created_at)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold">{fmtCOP(pedido.total)}</p>
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          pedido.estado === 'entregado' ? 'bg-green-500/20 text-green-300' :
-                          pedido.estado === 'pendiente' ? 'bg-yellow-500/20 text-yellow-300' :
-                          'bg-blue-500/20 text-blue-300'
-                        }`}>{pedido.estado}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
-        </section>
+        </div>
+      )}
 
-        <section className="mb-12">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold text-white">Farmacias</h2>
+      <div className="max-w-6xl mx-auto p-4 sm:p-6">
+        <h1 className="text-xl sm:text-2xl font-bold text-violet-600 mb-4 sm:mb-6">🌐 Panel Super Administrador</h1>
+
+        <div className="flex gap-2 mb-4 sm:mb-6 flex-wrap sm:flex-nowrap overflow-x-auto pb-2">
+          {[
+            { key: "dashboard", label: "📊" },
+            { key: "farmacias", label: "🏪" },
+            { key: "usuarios", label: "👥" },
+          ].map(t => (
             <button
-              onClick={() => cargarFarmacias()}
-              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-3 sm:px-4 py-2 rounded-lg font-medium whitespace-nowrap min-h-[44px] ${
+                tab === t.key ? "bg-violet-600 text-white" : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-white"
+              }`}
             >
-              Actualizar
+              <span className="sm:hidden text-lg">{t.label}</span>
+              <span className="hidden sm:inline">{t.label} {t.key === "dashboard" ? "Dashboard" : t.key === "farmacias" ? "Farmacias" : "Usuarios"}</span>
             </button>
-          </div>
-          <div className="bg-white/10 backdrop-blur-sm p-6 rounded-xl border border-white/20">
-            <div className="flex flex-wrap gap-4 mb-6">
-              <input
-                type="text"
-                placeholder="Buscar por nombre o email..."
-                value={filtroBusqueda}
-                onChange={(e) => setFiltroBusqueda(e.target.value)}
-                className="flex-1 min-w-[200px] px-4 py-2.5 rounded-lg bg-white/5 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <select
-                value={filtroEstado}
-                onChange={(e) => setFiltroEstado(e.target.value)}
-                className="px-4 py-2.5 rounded-lg bg-white/5 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Todos los estados</option>
-                <option value="pendiente">Pendiente</option>
-                <option value="aprobada">Aprobada</option>
-                <option value="rechazada">Rechazada</option>
-              </select>
+          ))}
+        </div>
+
+        {tab === "dashboard" && (
+          <>
+            <h2 className="text-xl font-bold mb-4">🏪 Farmacias</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.secondary}`}>{stats.totalPharmacies}</div>
+                <div className={`text-xs ${statColors.secondary} font-medium`}>Total</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.primary}`}>{stats.approved}</div>
+                <div className={`text-xs ${statColors.primary} font-medium`}>Aprobadas</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.warning}`}>{stats.pending}</div>
+                <div className={`text-xs ${statColors.warning} font-medium`}>Pendientes</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.danger}`}>{stats.rejected}</div>
+                <div className={`text-xs ${statColors.danger} font-medium`}>Rechazadas</div>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              {farmaciasFiltradas.map((farmacia) => (
-                <div key={farmacia.id} className="bg-white/5 p-4 rounded-lg border border-white/10">
-                  <div className="flex justify-between items-start">
+            <h2 className="text-xl font-bold mb-4">👥 Usuarios + Farmacias</h2>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-6">
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.primary}`}>{stats.superAdmins}</div>
+                <div className={`text-xs ${statColors.primary} font-medium`}>Super Admin</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.warning}`}>{stats.admins}</div>
+                <div className={`text-xs ${statColors.warning} font-medium`}>Admins</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.danger}`}>{stats.totalPharmacies}</div>
+                <div className={`text-xs ${statColors.danger} font-medium`}>Farmacias</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.warning}`}>{stats.farmaceuticos}</div>
+                <div className={`text-xs ${statColors.warning} font-medium`}>Farmacéuticos</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.danger}`}>{stats.domiciliario}</div>
+                <div className={`text-xs ${statColors.danger} font-medium`}>Domiciliarios</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.success}`}>{stats.clientes}</div>
+                <div className={`text-xs ${statColors.success} font-medium`}>Clientes</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.secondary}`}>{stats.totalUsers + stats.totalPharmacies}</div>
+                <div className={`text-xs ${statColors.secondary} font-medium`}>Total</div>
+              </div>
+            </div>
+
+            <h2 className="text-xl font-bold mb-4">📋 Pedidos por Estado</h2>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.secondary}`}>{stats.totalPedidos}</div>
+                <div className={`text-xs ${statColors.secondary} font-medium`}>Total</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.primary}`}>{stats.pedidosPendientes}</div>
+                <div className={`text-xs ${statColors.primary} font-medium`}>Pendientes</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.danger}`}>{stats.pedidosEnCamino}</div>
+                <div className={`text-xs ${statColors.danger} font-medium`}>En Camino</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.success}`}>{stats.pedidosEntregados}</div>
+                <div className={`text-xs ${statColors.success} font-medium`}>Entregados</div>
+              </div>
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.warning}`}>{stats.pedidosCancelados}</div>
+                <div className={`text-xs ${statColors.warning} font-medium`}>Cancelados</div>
+              </div>
+            </div>
+
+            <h2 className="text-xl font-bold mb-4">💊 Productos</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className={glassCard}>
+                <div className={`text-2xl font-extrabold ${statColors.secondary}`}>{stats.totalProductos}</div>
+                <div className={`text-xs ${statColors.secondary} font-medium`}>Total</div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {tab === "farmacias" && (
+          <>
+            <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+              🏪 Solicitudes de Farmacias
+              <button onClick={cargarDatos} className="text-violet-500 text-sm hover:underline">🔄 Actualizar</button>
+            </h2>
+            {cargando ? (
+              <div className="text-center py-12 text-slate-500">Cargando...</div>
+            ) : pharmacies.length === 0 ? (
+              <div className={`text-center py-12 text-slate-500 ${bgCard} rounded-xl`}>No hay solicitudes</div>
+            ) : (
+              <div className="space-y-3">
+                {pharmacies.map(p => (
+                  <div key={p.id} className={`${bgCard} rounded-xl p-5 shadow-sm`}>
+                    <div className="flex justify-between items-start">
+                      <div className="text-left">
+                        <div className="font-bold text-lg">{p.nombre}</div>
+                        <div className="text-slate-500 text-sm">NIT: {p.nit}</div>
+                        <div className="text-slate-400 text-xs mt-1">📍 {p.direccion}, {p.barrio}, {p.ciudad}</div>
+                        <div className="text-slate-400 text-xs">📞 {p.telefono} | 📧 {p.email}</div>
+                        <div className="text-slate-400 text-xs">👤 Responsable: {p.responsable_nombre}</div>
+                        <div className="text-slate-400 text-xs">📅 Solicitud: {fmtFecha(p.fecha_solicitud)}</div>
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          p.estado === "aprobado" ? "bg-green-600 text-white" :
+                          p.estado === "rechazado" ? "bg-red-600 text-white" :
+                          "bg-yellow-600 text-white"
+                        }`}>
+                          {p.estado.toUpperCase()}
+                        </span>
+                        {p.estado === "pendiente" && (
+                          <div className="flex gap-2 mt-2">
+                            <button className="bg-red-500 text-white px-4 py-1 rounded-lg text-sm" onClick={() => setRechazoModal(p)}>❌ Rechazar</button>
+                            <button className="bg-green-600 text-white px-4 py-1 rounded-lg text-sm" onClick={() => aprobarPharmacy(p.id)}>✅ Aprobar</button>
+                          </div>
+                        )}
+                        {p.estado !== "pendiente" && (
+                          <button className="bg-red-600 text-white px-3 py-1 rounded-lg text-sm mt-2" onClick={() => eliminarPharmacy(p.id, p.nombre)}>🗑️ Eliminar</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {tab === "usuarios" && (
+          <>
+            <h2 className="text-lg sm:text-xl font-bold mt-6 sm:mt-8 mb-4">👥 Todos los Usuarios</h2>
+            <div className="hidden sm:block">
+              <div className={`${bgCard} rounded-xl p-4 shadow-sm overflow-x-auto`}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-slate-500 border-b">
+                      <th className="pb-2">Nombre</th>
+                      <th className="pb-2">Email</th>
+                      <th className="pb-2">Rol</th>
+                      <th className="pb-2">Farmacia</th>
+                      <th className="pb-2">Telefono</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usuarios.map(u => (
+                      <tr key={u.id} className="border-b border-slate-100 dark:border-slate-700">
+                        <td className="py-2">{u.nombre || "-"}</td>
+                        <td className="py-2">{u.email || "-"}</td>
+                        <td className="py-2">
+                          {editandoUsuario?.id === u.id ? (
+                            <div className="flex gap-1">
+                              <select
+                                value={nuevoRol}
+                                onChange={e => setNuevoRol(e.target.value)}
+                                className="text-xs border rounded px-2 py-1 bg-white text-slate-800 font-semibold"
+                              >
+                                <option value="">Seleccionar</option>
+                                <option value="cliente">Cliente</option>
+                                <option value="admin">Admin</option>
+                                <option value="farmaceutico">Farmaceutico</option>
+                                <option value="domiciliario">Domiciliario</option>
+                                <option value="superadmin">🌐 Super Admin</option>
+                              </select>
+                              <button onClick={() => cambiarRol(u.id)} className="text-green-600 font-bold text-sm ml-1">✓</button>
+                              <button onClick={() => { setEditandoUsuario(null); setNuevoRol(""); }} className="text-red-600 font-bold text-sm ml-1">✕</button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setEditandoUsuario(u); setNuevoRol(u.rol || "cliente"); }}
+                              className={`px-2 py-1 rounded text-xs cursor-pointer font-bold ${
+                                u.rol === "superadmin" ? "bg-gradient-to-r from-purple-600 to-violet-700 text-white shadow-lg shadow-purple-500/30" :
+                                u.rol === "admin" ? "bg-gradient-to-r from-violet-600 to-violet-700 text-white shadow-lg shadow-violet-500/30" :
+                                u.rol === "farmaceutico" ? "bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg shadow-green-500/30" :
+                                u.rol === "domiciliario" ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-500/30" :
+                                "bg-gradient-to-r from-slate-500 to-slate-600 text-white shadow-lg shadow-slate-500/30"
+                              }`}
+                            >
+                              {u.rol === "superadmin" ? "🌐 Super Admin" : u.rol || "cliente"}
+                            </button>
+                          )}
+                        </td>
+                        <td className="py-2">{u.pharmacy_nombre || "-"}</td>
+                        <td className="py-2">{u.telefono || "-"}</td>
+                        <td className="py-2">
+                          {u.rol !== "superadmin" && (
+                            <button
+                              onClick={() => eliminarUsuario(u.id)}
+                              className="text-red-600 hover:text-red-800 font-bold text-sm"
+                              title="Eliminar usuario"
+                            >
+                              🗑️
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="sm:hidden space-y-3">
+              {usuarios.map(u => (
+                <div key={u.id} className={`${bgCard} rounded-xl p-4`}>
+                  <div className="flex justify-between items-start mb-2">
                     <div>
-                      <h3 className="text-white font-medium">{farmacia.nombre}</h3>
-                      <p className="text-white/60 text-sm">{farmacia.email}</p>
-                      <span className={`inline-block mt-2 px-2 py-1 rounded text-xs ${
-                        farmacia.estado === 'aprobada' ? 'bg-green-500/20 text-green-300' :
-                        farmacia.estado === 'rechazada' ? 'bg-red-500/20 text-red-300' :
-                        'bg-yellow-500/20 text-yellow-300'
-                      }`}>
-                        {farmacia.estado || 'pendiente'}
-                      </span>
+                      <div className="font-semibold text-sm">{u.nombre || "-"}</div>
+                      <div className="text-slate-500 text-xs">{u.email || "-"}</div>
                     </div>
-                    <div className="flex gap-2">
-                      {(!farmacia.estado || farmacia.estado === 'pendiente') && (
-                        <>
-                          <button
-                            onClick={() => aprobarFarmacia(farmacia.id)}
-                            className="px-3 py-1 rounded bg-green-600 text-white text-sm hover:bg-green-700 transition"
-                          >
-                            Aprobar
-                          </button>
-                          <button
-                            onClick={() => setRechazoModal({ id: farmacia.id, tipo: 'farmacia' })}
-                            className="px-3 py-1 rounded bg-red-600 text-white text-sm hover:bg-red-700 transition"
-                          >
-                            Rechazar
-                          </button>
-                        </>
-                      )}
-                      <button
-                        onClick={() => setFarmaciaSeleccionada(farmacia)}
-                        className="px-3 py-1 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 transition"
-                      >
-                        Ver Detalles
+                    {u.rol !== "superadmin" && (
+                      <button onClick={() => eliminarUsuario(u.id)} className="text-red-600 font-bold text-lg">🗑️</button>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 items-center mt-2">
+                    {editandoUsuario?.id === u.id ? (
+                      <div className="flex gap-1 flex-wrap">
+                        <select value={nuevoRol} onChange={e => setNuevoRol(e.target.value)} className="text-xs border rounded px-2 py-2 bg-white text-slate-800 font-semibold min-h-[36px]">
+                          <option value="cliente">Cliente</option>
+                          <option value="admin">Admin</option>
+                          <option value="farmaceutico">Farmaceutico</option>
+                          <option value="domiciliario">Domiciliario</option>
+                          <option value="superadmin">🌐 Super Admin</option>
+                        </select>
+                        <button onClick={() => cambiarRol(u.id)} className="text-green-600 font-bold text-sm px-2 py-2 min-h-[36px]">✓</button>
+                        <button onClick={() => { setEditandoUsuario(null); setNuevoRol(""); }} className="text-red-600 font-bold text-sm px-2 py-2 min-h-[36px]">✕</button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setEditandoUsuario(u); setNuevoRol(u.rol || "cliente"); }}
+                        className={`px-2 py-1.5 rounded text-xs font-bold ${
+                          u.rol === "superadmin" ? "bg-gradient-to-r from-purple-600 to-violet-700 text-white" :
+                          u.rol === "admin" ? "bg-gradient-to-r from-violet-600 to-violet-700 text-white" :
+                          u.rol === "farmaceutico" ? "bg-gradient-to-r from-green-600 to-green-700 text-white" :
+                          u.rol === "domiciliario" ? "bg-gradient-to-r from-orange-500 to-orange-600 text-white" :
+                          "bg-gradient-to-r from-slate-500 to-slate-600 text-white"
+                        }`}>
+                        {u.rol === "superadmin" ? "🌐 Super Admin" : u.rol || "cliente"}
                       </button>
-                    </div>
+                    )}
+                    <span className="text-xs text-slate-400">{u.pharmacy_nombre || "-"}</span>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        <section className="mb-12">
-          <h2 className="text-xl font-semibold text-white mb-6">Usuarios</h2>
-          <div className="bg-white/10 backdrop-blur-sm p-6 rounded-xl border border-white/20">
-            <div className="space-y-4">
-              {usuarios.map((usuario) => (
-                <div key={usuario.id} className="bg-white/5 p-4 rounded-lg border border-white/10">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="text-white font-medium">{usuario.nombre}</h3>
-                      <p className="text-white/60 text-sm">{usuario.email}</p>
-                      <span className="inline-block mt-2 px-2 py-1 rounded text-xs bg-blue-500/20 text-blue-300">
-                        {usuario.rol}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setEditandoUsuario(usuario)}
-                        className="px-3 py-1 rounded bg-yellow-600 text-white text-sm hover:bg-yellow-700 transition"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => eliminarUsuario(usuario.id)}
-                        className="px-3 py-1 rounded bg-red-600 text-white text-sm hover:bg-red-700 transition"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {rechazoModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-slate-800 p-6 rounded-xl border border-white/20 max-w-md w-full">
-              <h3 className="text-white text-lg font-semibold mb-4">Motivo de rechazo</h3>
-              <textarea
-                className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-                rows={4}
-                placeholder="Ingresa el motivo del rechazo..."
-                id="motivoRechazo"
-              />
-              <div className="flex gap-4">
-                <button
-                  onClick={() => {
-                    const motivo = (document.getElementById('motivoRechazo') as HTMLTextAreaElement).value;
-                    rechazarFarmacia(rechazoModal.id, motivo);
-                  }}
-                  className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition"
-                >
-                  Confirmar Rechazo
-                </button>
-                <button
-                  onClick={() => setRechazoModal(null)}
-                  className="px-4 py-2 rounded bg-white/10 text-white hover:bg-white/20 transition"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {farmaciaSeleccionada && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-slate-800 p-6 rounded-xl border border-white/20 max-w-lg w-full">
-              <h3 className="text-white text-lg font-semibold mb-4">Detalles de Farmacia</h3>
-              <div className="text-white/80 space-y-2 mb-4">
-                <p><strong>Nombre:</strong> {farmaciaSeleccionada.nombre}</p>
-                <p><strong>Email:</strong> {farmaciaSeleccionada.email}</p>
-                <p><strong>Estado:</strong> {farmaciaSeleccionada.estado || 'pendiente'}</p>
-                <p><strong>Dirección:</strong> {farmaciaSeleccionada.direccion || 'No especificada'}</p>
-                <p><strong>Teléfono:</strong> {farmaciaSeleccionada.telefono || 'No especificado'}</p>
-              </div>
-              <button
-                onClick={() => setFarmaciaSeleccionada(null)}
-                className="px-4 py-2 rounded bg-white/10 text-white hover:bg-white/20 transition"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        )}
-
-        {editandoUsuario && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-slate-800 p-6 rounded-xl border border-white/20 max-w-md w-full">
-              <h3 className="text-white text-lg font-semibold mb-4">Editar Usuario</h3>
-              <div className="space-y-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-white mb-2">Nombre</label>
-                  <input
-                    type="text"
-                    defaultValue={editandoUsuario.nombre}
-                    className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    id="editNombre"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-white mb-2">Rol</label>
-                  <select
-                    defaultValue={editandoUsuario.rol}
-                    className="w-full px-4 py-2.5 rounded-lg bg-white/5 border border-white/20 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    id="editRol"
-                  >
-                    <option value="cliente">Cliente</option>
-                    <option value="farmaceutico">Farmacéutico</option>
-                    <option value="domiciliario">Domiciliario</option>
-                    <option value="admin">Admin Farmacia</option>
-                    <option value="superadmin">Super Admin</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => {
-                    const nombre = (document.getElementById('editNombre') as HTMLInputElement).value;
-                    const rol = (document.getElementById('editRol') as HTMLSelectElement).value;
-                    actualizarUsuario(editandoUsuario.id, { nombre, rol });
-                  }}
-                  className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"
-                >
-                  Guardar
-                </button>
-                <button
-                  onClick={() => setEditandoUsuario(null)}
-                  className="px-4 py-2 rounded bg-white/10 text-white hover:bg-white/20 transition"
-                >
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
+          </>
         )}
       </div>
     </div>
