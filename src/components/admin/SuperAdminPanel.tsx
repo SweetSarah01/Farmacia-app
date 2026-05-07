@@ -48,13 +48,6 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
     cargarDatos();
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      cargarDatos();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
   const cargarDatos = async () => {
     setCargando(true);
     const { data: pharms } = await supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
