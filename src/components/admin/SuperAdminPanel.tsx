@@ -43,6 +43,8 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
   const [editandoUsuario, setEditandoUsuario] = useState<any>(null);
   const [nuevoRol, setNuevoRol] = useState("");
   const [tab, setTab] = useState("dashboard");
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
 
   useEffect(() => {
     cargarDatos();
@@ -65,11 +67,26 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
     };
   }, []);
 
-  const cargarDatos = async () => {
+  const cargarDatos = async (filtroFechaInicio?: string, filtroFechaFin?: string) => {
     setCargando(true);
     const { data: pharms } = await supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
     setPharmacies(pharms || []);
+    
+    // Filtrar pedidos por rango de fechas si se especifica
+    let pedidosQuery = supabase.from("pedidos").select("*");
+    if (filtroFechaInicio) {
+      pedidosQuery = pedidosQuery.gte("created_at", filtroFechaInicio);
+    }
+    if (filtroFechaFin) {
+      const fechaFinAjustada = new Date(filtroFechaFin);
+      fechaFinAjustada.setDate(fechaFinAjustada.getDate() + 1);
+      pedidosQuery = pedidosQuery.lt("created_at", fechaFinAjustada.toISOString().split('T')[0]);
+    }
+    const { data: pedidos } = await pedidosQuery;
+    
+    const { data: productos } = await supabase.from("productos").select("*");
     const { data: users } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
+    
     const pharmMap: Record<string, string> = {};
     (pharms || []).forEach(p => { pharmMap[p.id] = p.nombre; });
     const usersConFarmacia = (users || []).map(u => ({
@@ -77,8 +94,7 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
       pharmacy_nombre: u.pharmacy_id ? pharmMap[u.pharmacy_id] || null : null
     }));
     setUsuarios(usersConFarmacia);
-    const { data: pedidos } = await supabase.from("pedidos").select("*");
-    const { data: productos } = await supabase.from("productos").select("*");
+    
     const approved = (pharms || []).filter(p => p.estado === "aprobado").length;
     const pending = (pharms || []).filter(p => p.estado === "pendiente").length;
     const rejected = (pharms || []).filter(p => p.estado === "rechazado").length;
@@ -244,6 +260,48 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
 
         {tab === "dashboard" && (
           <>
+            <div className="mb-6 bg-violet-950/30 backdrop-blur rounded-2xl p-4 border border-violet-500/30">
+              <h3 className="text-lg font-bold mb-3 text-violet-300">📅 Filtrar por rango de fechas</h3>
+              <div className="flex flex-wrap gap-3 items-end">
+                <div>
+                  <label className="block text-xs text-violet-300 mb-1">Fecha inicio</label>
+                  <input
+                    type="date"
+                    value={fechaInicio}
+                    onChange={e => setFechaInicio(e.target.value)}
+                    className="px-3 py-2 rounded-lg bg-slate-800 border border-violet-500/30 text-white text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-violet-300 mb-1">Fecha fin</label>
+                  <input
+                    type="date"
+                    value={fechaFin}
+                    onChange={e => setFechaFin(e.target.value)}
+                    className="px-3 py-2 rounded-lg bg-slate-800 border border-violet-500/30 text-white text-sm"
+                  />
+                </div>
+                <button
+                  onClick={() => cargarDatos(fechaInicio, fechaFin)}
+                  className="px-4 py-2 bg-violet-600 text-white rounded-lg text-sm hover:bg-violet-700 transition"
+                >
+                  🔍 Filtrar
+                </button>
+                {(fechaInicio || fechaFin) && (
+                  <button
+                    onClick={() => {
+                      setFechaInicio("");
+                      setFechaFin("");
+                      cargarDatos();
+                    }}
+                    className="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm hover:bg-slate-600 transition"
+                  >
+                    ✕ Limpiar
+                  </button>
+                )}
+              </div>
+            </div>
+
             <h2 className="text-xl font-bold mb-4">🏪 Farmacias</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               <div className={glassCard}>
@@ -334,7 +392,7 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
           <>
             <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
               🏪 Solicitudes de Farmacias
-              <button onClick={cargarDatos} className="text-violet-500 text-sm hover:underline">🔄 Actualizar</button>
+              <button onClick={() => cargarDatos()} className="text-violet-500 text-sm hover:underline">🔄 Actualizar</button>
             </h2>
             {cargando ? (
               <div className="text-center py-12 text-slate-500">Cargando...</div>
