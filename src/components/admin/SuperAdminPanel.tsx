@@ -47,7 +47,7 @@ const glassCard = modoOscuro
   const [farmaciaSeleccionada, setFarmaciaSeleccionada] = useState<any>(null);
   const [busquedaFarmacia, setBusquedaFarmacia] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
-  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaInicio, setFechaInicio] = useState(""); // Solo fecha inicio
 
   useEffect(() => {
     cargarDatos();
