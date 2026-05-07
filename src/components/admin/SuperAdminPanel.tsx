@@ -48,13 +48,12 @@ const glassCard = modoOscuro
   const [busquedaFarmacia, setBusquedaFarmacia] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("");
   const [fechaInicio, setFechaInicio] = useState("");
-  const [fechaFin, setFechaFin] = useState("");
 
   useEffect(() => {
     cargarDatos();
   }, []);
 
-  const cargarDatos = async (filtroFechaInicio?: string, filtroFechaFin?: string) => {
+  const cargarDatos = async (filtroFechaInicio?: string) => {
     setCargando(true);
     
     let queryPharmacies = supabase.from("pharmacies").select("*").order("created_at", { ascending: false });
@@ -68,13 +67,6 @@ const glassCard = modoOscuro
       queryUsers = queryUsers.gte("created_at", fechaInicioISO);
       queryPedidos = queryPedidos.gte("created_at", fechaInicioISO);
       queryProductos = queryProductos.gte("created_at", fechaInicioISO);
-    }
-    if (filtroFechaFin) {
-      const fechaFinISO = new Date(filtroFechaFin + "T23:59:59").toISOString();
-      queryPharmacies = queryPharmacies.lte("created_at", fechaFinISO);
-      queryUsers = queryUsers.lte("created_at", fechaFinISO);
-      queryPedidos = queryPedidos.lte("created_at", fechaFinISO);
-      queryProductos = queryProductos.lte("created_at", fechaFinISO);
     }
     
     const { data: pharms } = await queryPharmacies;
@@ -367,7 +359,7 @@ const aprobarPharmacy = async (id: string) => {
         <>
           <div className="mb-4 p-4 rounded-xl bg-violet-50 dark:bg-slate-800 border border-violet-200 dark:border-violet-700">
             <p className="text-sm mb-3 text-slate-600 dark:text-slate-300">
-              Puedes filtrar las estadísticas por rango de fechas.
+              Puedes filtrar las estadísticas por fecha de inicio.
             </p>
             <div className="flex flex-col sm:flex-row gap-2 items-end">
               <div>
@@ -379,26 +371,16 @@ const aprobarPharmacy = async (id: string) => {
                   className={`block px-3 py-2 rounded-lg border text-sm ${bgInput}`}
                 />
               </div>
-              <div>
-                <label className="text-xs text-slate-500">Fecha fin</label>
-                <input
-                  type="date"
-                  value={fechaFin}
-                  onChange={e => setFechaFin(e.target.value)}
-                  className={`block px-3 py-2 rounded-lg border text-sm ${bgInput}`}
-                />
-              </div>
               <button
-                onClick={() => cargarDatos(fechaInicio, fechaFin)}
+                onClick={() => cargarDatos(fechaInicio, "")}
                 className="bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-violet-700 min-h-[36px]"
               >
                 Filtrar
               </button>
-              {(fechaInicio || fechaFin) && (
+              {fechaInicio && (
                 <button
                   onClick={() => {
                     setFechaInicio("");
-                    setFechaFin("");
                     cargarDatos();
                   }}
                   className="text-sm text-red-500 hover:text-red-400 min-h-[36px]"
