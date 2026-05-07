@@ -46,6 +46,23 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
 
   useEffect(() => {
     cargarDatos();
+    
+    // Suscribirse a nuevas solicitudes de farmacias
+    const subscription = supabase
+      .channel('pharmacies-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pharmacies' },
+        (payload) => {
+          console.log('Cambio detectado en pharmacies:', payload);
+          cargarDatos();
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(subscription);
+    };
   }, []);
 
   const cargarDatos = async () => {
