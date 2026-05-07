@@ -12,7 +12,7 @@ function fmtFecha(date: string) {
 
 export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: any) {
   const { modoOscuro } = useTheme();
-  const bgMain = modoOscuro ? "min-h-screen bg-slate-900 text-white" : "min-h-screen bg-slate-100 text-slate-800";
+  const bgMain = modoOscuro ? "min-h-screen bg-slate-900 text-white" : "min-h-screen bg-slate-50 text-slate-800";
 const bgCard = modoOscuro 
     ? "bg-slate-800 border-l-4 border-violet-500 rounded-xl p-3" 
     : "bg-white border-l-4 border-violet-400 rounded-xl p-3";
