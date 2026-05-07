@@ -1,7 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || (window as any).__ENV__?.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || (window as any).__ENV__?.VITE_SUPABASE_ANON_KEY || "";
+const getEnv = (key: string): string => {
+  if (import.meta.env[key]) return import.meta.env[key] as string;
+  if ((window as any).__ENV__ && (window as any).__ENV__[key]) return (window as any).__ENV__[key];
+  return "";
+};
+
+const supabaseUrl = getEnv("VITE_SUPABASE_URL");
+const supabaseAnonKey = getEnv("VITE_SUPABASE_ANON_KEY");
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
