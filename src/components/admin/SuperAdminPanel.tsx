@@ -260,25 +260,37 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
 
         {tab === "dashboard" && (
           <>
-            <div className="mb-6 bg-violet-950/30 backdrop-blur rounded-2xl p-4 border border-violet-500/30">
-              <h3 className="text-lg font-bold mb-3 text-violet-300">📅 Filtrar por rango de fechas</h3>
+            <div className={`mb-6 rounded-2xl p-4 border ${
+              modoOscuro 
+                ? "bg-violet-950/30 backdrop-blur border-violet-500/30" 
+                : "bg-violet-50 border-violet-200 shadow-sm"
+            }`}>
+              <h3 className={`text-lg font-bold mb-3 ${modoOscuro ? "text-violet-300" : "text-violet-700"}`}>📅 Filtrar por rango de fechas</h3>
               <div className="flex flex-wrap gap-3 items-end">
                 <div>
-                  <label className="block text-xs text-violet-300 mb-1">Fecha inicio</label>
+                  <label className={`block text-xs mb-1 ${modoOscuro ? "text-violet-300" : "text-violet-600"}`}>Fecha inicio</label>
                   <input
                     type="date"
                     value={fechaInicio}
                     onChange={e => setFechaInicio(e.target.value)}
-                    className="px-3 py-2 rounded-lg bg-slate-800 border border-violet-500/30 text-white text-sm"
+                    className={`px-3 py-2 rounded-lg text-sm border ${
+                      modoOscuro 
+                        ? "bg-slate-800 border-violet-500/30 text-white" 
+                        : "bg-white border-violet-300 text-slate-800"
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-violet-300 mb-1">Fecha fin</label>
+                  <label className={`block text-xs mb-1 ${modoOscuro ? "text-violet-300" : "text-violet-600"}`}>Fecha fin</label>
                   <input
                     type="date"
                     value={fechaFin}
                     onChange={e => setFechaFin(e.target.value)}
-                    className="px-3 py-2 rounded-lg bg-slate-800 border border-violet-500/30 text-white text-sm"
+                    className={`px-3 py-2 rounded-lg text-sm border ${
+                      modoOscuro 
+                        ? "bg-slate-800 border-violet-500/30 text-white" 
+                        : "bg-white border-violet-300 text-slate-800"
+                    }`}
                   />
                 </div>
                 <button
@@ -294,7 +306,11 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
                       setFechaFin("");
                       cargarDatos();
                     }}
-                    className="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm hover:bg-slate-600 transition"
+                    className={`px-4 py-2 rounded-lg text-sm transition ${
+                      modoOscuro 
+                        ? "bg-slate-700 text-white hover:bg-slate-600" 
+                        : "bg-slate-200 text-slate-700 hover:bg-slate-300"
+                    }`}
                   >
                     ✕ Limpiar
                   </button>
