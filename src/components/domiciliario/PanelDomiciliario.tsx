@@ -97,6 +97,24 @@ export default function PanelDomiciliario({ perfil, cerrarSesion }: { perfil: an
   }, [perfil.id]);
 
   useEffect(() => { cargar(); }, [cargar]);
+  
+  useEffect(() => {
+    const subscription = supabase
+      .channel('pedidos-changes-domiciliario')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'pedidos', filter: `domiciliario_id=eq.${perfil.id}` },
+        (payload) => {
+          console.log('Cambio en pedido:', payload);
+          cargar();
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(subscription);
+    };
+  }, [perfil.id]);
   useEffect(() => {
     const interval = setInterval(() => {
       setTiemposInicio(prev => {
