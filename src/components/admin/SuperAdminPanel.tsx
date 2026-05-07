@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { supabase } from '../../supabaseClient';
 import { useTheme } from '../../App';
+import { fmtCOP, fmtFecha } from '../../supabaseClient';
 
 export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => void }) {
   const { modoOscuro } = useTheme();
@@ -20,14 +22,27 @@ export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => 
     try {
       setLoading(true);
       setError(null);
-      const queryParams = new URLSearchParams();
+      
+      let query = supabase.from('pedidos').select('*', { count: 'exact' });
+      
       if (filtroFechaInicio) {
-        queryParams.append('fechaInicio', filtroFechaInicio);
+        query = query.gte('created_at', filtroFechaInicio);
       }
-      const response = await fetch(`/api/superadmin/dashboard?${queryParams.toString()}`);
-      if (!response.ok) throw new Error('Error al cargar datos del dashboard');
-      const data = await response.json();
-      setDatosDashboard(data);
+      
+      const { data: pedidos, error: errorPedidos } = await query;
+      if (errorPedidos) throw errorPedidos;
+
+      const totalVentas = pedidos?.reduce((sum, p) => sum + (p.total || 0), 0) || 0;
+      const pedidosPendientes = pedidos?.filter(p => p.estado === 'pendiente').length || 0;
+      const pedidosEntregados = pedidos?.filter(p => p.estado === 'entregado').length || 0;
+
+      setDatosDashboard({
+        totalPedidos: pedidos?.length || 0,
+        totalVentas,
+        pedidosPendientes,
+        pedidosEntregados,
+        pedidos: pedidos?.slice(0, 10) || []
+      });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -37,10 +52,12 @@ export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => 
 
   const cargarFarmacias = async () => {
     try {
-      const response = await fetch('/api/superadmin/farmacias');
-      if (!response.ok) throw new Error('Error al cargar farmacias');
-      const data = await response.json();
-      setFarmacias(data);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('rol', 'admin');
+      if (error) throw error;
+      setFarmacias(data || []);
     } catch (err: any) {
       setError(err.message);
     }
@@ -48,10 +65,12 @@ export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => 
 
   const cargarUsuarios = async () => {
     try {
-      const response = await fetch('/api/superadmin/usuarios');
-      if (!response.ok) throw new Error('Error al cargar usuarios');
-      const data = await response.json();
-      setUsuarios(data);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setUsuarios(data || []);
     } catch (err: any) {
       setError(err.message);
     }
@@ -70,8 +89,11 @@ export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => 
 
   const aprobarFarmacia = async (id: string) => {
     try {
-      const response = await fetch(`/api/superadmin/farmacias/${id}/aprobar`, { method: 'POST' });
-      if (!response.ok) throw new Error('Error al aprobar farmacia');
+      const { error } = await supabase
+        .from('profiles')
+        .update({ estado: 'aprobada' })
+        .eq('id', id);
+      if (error) throw error;
       cargarFarmacias();
     } catch (err: any) {
       setError(err.message);
@@ -80,12 +102,11 @@ export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => 
 
   const rechazarFarmacia = async (id: string, motivo: string) => {
     try {
-      const response = await fetch(`/api/superadmin/farmacias/${id}/rechazar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ motivo }),
-      });
-      if (!response.ok) throw new Error('Error al rechazar farmacia');
+      const { error } = await supabase
+        .from('profiles')
+        .update({ estado: 'rechazada' })
+        .eq('id', id);
+      if (error) throw error;
       setRechazoModal(null);
       cargarFarmacias();
     } catch (err: any) {
@@ -95,12 +116,11 @@ export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => 
 
   const actualizarUsuario = async (id: string, datos: any) => {
     try {
-      const response = await fetch(`/api/superadmin/usuarios/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(datos),
-      });
-      if (!response.ok) throw new Error('Error al actualizar usuario');
+      const { error } = await supabase
+        .from('profiles')
+        .update(datos)
+        .eq('id', id);
+      if (error) throw error;
       setEditandoUsuario(null);
       cargarUsuarios();
     } catch (err: any) {
@@ -111,8 +131,11 @@ export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => 
   const eliminarUsuario = async (id: string) => {
     if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
     try {
-      const response = await fetch(`/api/superadmin/usuarios/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Error al eliminar usuario');
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
       cargarUsuarios();
     } catch (err: any) {
       setError(err.message);
@@ -191,9 +214,44 @@ export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => 
 
             {!loading && !error && datosDashboard && (
               <div className="text-white">
-                <pre className="bg-black/20 p-4 rounded-lg overflow-x-auto">
-                  {JSON.stringify(datosDashboard, null, 2)}
-                </pre>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="bg-white/5 p-4 rounded-lg">
+                    <p className="text-sm text-white/60">Total Pedidos</p>
+                    <p className="text-2xl font-bold">{datosDashboard.totalPedidos}</p>
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-lg">
+                    <p className="text-sm text-white/60">Ventas Totales</p>
+                    <p className="text-2xl font-bold">{fmtCOP(datosDashboard.totalVentas)}</p>
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-lg">
+                    <p className="text-sm text-white/60">Pendientes</p>
+                    <p className="text-2xl font-bold">{datosDashboard.pedidosPendientes}</p>
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-lg">
+                    <p className="text-sm text-white/60">Entregados</p>
+                    <p className="text-2xl font-bold">{datosDashboard.pedidosEntregados}</p>
+                  </div>
+                </div>
+                
+                <h3 className="text-lg font-semibold mb-4">Últimos Pedidos</h3>
+                <div className="space-y-2">
+                  {datosDashboard.pedidos.map((pedido: any) => (
+                    <div key={pedido.id} className="bg-white/5 p-3 rounded flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">{pedido.id.slice(0, 8)}</p>
+                        <p className="text-sm text-white/60">{fmtFecha(pedido.created_at)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold">{fmtCOP(pedido.total)}</p>
+                        <span className={`text-xs px-2 py-1 rounded ${
+                          pedido.estado === 'entregado' ? 'bg-green-500/20 text-green-300' :
+                          pedido.estado === 'pendiente' ? 'bg-yellow-500/20 text-yellow-300' :
+                          'bg-blue-500/20 text-blue-300'
+                        }`}>{pedido.estado}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -203,7 +261,7 @@ export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => 
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-white">Farmacias</h2>
             <button
-              onClick={() => cargarDatos()}
+              onClick={() => cargarFarmacias()}
               className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"
             >
               Actualizar
@@ -242,11 +300,11 @@ export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => 
                         farmacia.estado === 'rechazada' ? 'bg-red-500/20 text-red-300' :
                         'bg-yellow-500/20 text-yellow-300'
                       }`}>
-                        {farmacia.estado}
+                        {farmacia.estado || 'pendiente'}
                       </span>
                     </div>
                     <div className="flex gap-2">
-                      {farmacia.estado === 'pendiente' && (
+                      {(!farmacia.estado || farmacia.estado === 'pendiente') && (
                         <>
                           <button
                             onClick={() => aprobarFarmacia(farmacia.id)}
@@ -349,9 +407,9 @@ export default function SuperAdminPanel({ cerrarSesion }: { cerrarSesion: () => 
               <div className="text-white/80 space-y-2 mb-4">
                 <p><strong>Nombre:</strong> {farmaciaSeleccionada.nombre}</p>
                 <p><strong>Email:</strong> {farmaciaSeleccionada.email}</p>
-                <p><strong>Estado:</strong> {farmaciaSeleccionada.estado}</p>
-                <p><strong>Dirección:</strong> {farmaciaSeleccionada.direccion}</p>
-                <p><strong>Teléfono:</strong> {farmaciaSeleccionada.telefono}</p>
+                <p><strong>Estado:</strong> {farmaciaSeleccionada.estado || 'pendiente'}</p>
+                <p><strong>Dirección:</strong> {farmaciaSeleccionada.direccion || 'No especificada'}</p>
+                <p><strong>Teléfono:</strong> {farmaciaSeleccionada.telefono || 'No especificado'}</p>
               </div>
               <button
                 onClick={() => setFarmaciaSeleccionada(null)}
