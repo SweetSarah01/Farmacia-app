@@ -372,7 +372,7 @@ const aprobarPharmacy = async (id: string) => {
                 />
               </div>
               <button
-                onClick={() => cargarDatos(fechaInicio, "")}
+                onClick={() => cargarDatos(fechaInicio)}
                 className="bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-violet-700 min-h-[36px]"
               >
                 Filtrar
