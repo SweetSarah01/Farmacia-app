@@ -7,6 +7,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distDir = path.join(__dirname, 'dist');
 const PORT = parseInt(process.env.PORT || process.env.RAILWAY_PORT || '8080', 10);
 
+console.log('Starting server...');
+console.log('PORT:', PORT);
+console.log('distDir:', distDir);
+console.log('distDir exists:', fs.existsSync(distDir));
+
+// Verificar que dist existe
+if (!fs.existsSync(distDir)) {
+  console.error('ERROR: dist directory does not exist!');
+  process.exit(1);
+}
+
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
 
@@ -57,7 +68,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': contentType });
     res.end(body);
   });
-});
+};
 
 server.on('error', (err) => {
   console.error('Server error:', err);
@@ -66,4 +77,5 @@ server.on('error', (err) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
+  console.log('Healthcheck available at: http://localhost:' + PORT + '/health');
 });
