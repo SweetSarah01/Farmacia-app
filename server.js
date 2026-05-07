@@ -12,7 +12,6 @@ console.log('PORT:', PORT);
 console.log('distDir:', distDir);
 console.log('distDir exists:', fs.existsSync(distDir));
 
-// Verificar que dist existe
 if (!fs.existsSync(distDir)) {
   console.error('ERROR: dist directory does not exist!');
   process.exit(1);
@@ -68,7 +67,7 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': contentType });
     res.end(body);
   });
-};
+});
 
 server.on('error', (err) => {
   console.error('Server error:', err);
