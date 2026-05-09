@@ -13,6 +13,26 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
   const [cargando, setCargando] = useState(false);
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [mostrarPasswordReg, setMostrarPasswordReg] = useState(false);
+  const [verificando, setVerificando] = useState(false);
+  const [codigo, setCodigo] = useState("");
+
+  const sendVerificationCode = async (email: string) => {
+    const res = await fetch('/api/send-verification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    return res.json();
+  };
+
+  const verifyCode = async (email: string, code: string) => {
+    const res = await fetch('/api/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code })
+    });
+    return res.json();
+  };
 
   const handleLogin = async () => {
     if (!form.email || !form.password) { setError("Completa todos los campos"); return; }
@@ -42,6 +62,31 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
     setCargando(true);
     setError("");
     try {
+      const result = await sendVerificationCode(form.email);
+      if (result.error) {
+        setError(result.error);
+        setCargando(false);
+        return;
+      }
+      setCargando(false);
+      setVerificando(true);
+    } catch (err: any) {
+      setCargando(false);
+      setError("Error: " + err.message);
+    }
+  };
+
+  const handleVerifyCode = async () => {
+    if (!codigo) { setError("Ingresa el código de verificación"); return; }
+    setCargando(true);
+    setError("");
+    try {
+      const result = await verifyCode(form.email, codigo);
+      if (result.error) {
+        setError(result.error);
+        setCargando(false);
+        return;
+      }
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
@@ -61,8 +106,9 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
         return;
       }
       setCargando(false);
+      setVerificando(false);
       setModo("login");
-      setError("Registro exitoso! Revisa tu email para confirmar tu cuenta.");
+      setError("Registro exitoso! Ya puedes iniciar sesión.");
     } catch (err: any) {
       setCargando(false);
       setError("Error: " + err.message);
@@ -91,7 +137,32 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
           </div>
         )}
 
-        {modo === "login" ? (
+        {verificando ? (
+          <div className="mt-6 w-full max-w-sm mx-auto">
+            <p className="text-center text-lg font-semibold mb-2" style={{ color: modoOscuro ? '#fff' : '#1f2937' }}>
+              Verifica tu correo
+            </p>
+            <p className="text-center text-sm mb-4" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>
+              Enviamos un código a <strong>{form.email}</strong>
+            </p>
+            <input
+              type="text"
+              placeholder="Código de 6 dígitos"
+              value={codigo}
+              onChange={e => setCodigo(e.target.value)}
+              className={`w-full px-3 py-2 rounded-md border outline-0 text-center text-lg tracking-widest ${bgInput}`}
+              style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
+            />
+            {error && <div className="mt-4 p-2 rounded bg-red-900/50 text-red-400 text-sm">{error}</div>}
+            <button
+              onClick={handleVerifyCode}
+              disabled={cargando}
+              className="w-full mt-4 py-3 rounded-md font-semibold disabled:opacity-50 bg-violet-500 text-white hover:bg-violet-600"
+            >
+              {cargando ? "Verificando..." : "Verificar código"}
+            </button>
+          </div>
+        ) : modo === "login" ? (
           <form className="mt-6" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
             <div className="mt-3">
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Email o Usuario</label>
