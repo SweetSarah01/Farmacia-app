@@ -4,26 +4,6 @@ import { supabase } from "../../supabaseClient";
 import { useTheme } from "../../App";
 import BlobsAuth from "./BlobsAuth";
 
-const API_URL = import.meta.env.VITE_API_URL || '';
-
-const sendVerificationCode = async (email: string) => {
-  const res = await fetch(`${API_URL}/api/send-verification`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email })
-  });
-  return res.json();
-};
-
-const verifyCode = async (email: string, code: string) => {
-  const res = await fetch(`${API_URL}/api/verify-code`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, code })
-  });
-  return res.json();
-};
-
 export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
   const navigate = useNavigate();
   const { modoOscuro } = useTheme();
@@ -33,9 +13,6 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
   const [cargando, setCargando] = useState(false);
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [mostrarPasswordReg, setMostrarPasswordReg] = useState(false);
-  const [verificando, setVerificando] = useState(false);
-  const [codigoVerificacion, setCodigoVerificacion] = useState("");
-  const [emailVerificado, setEmailVerificado] = useState(false);
 
   const handleLogin = async () => {
     if (!form.email || !form.password) { setError("Completa todos los campos"); return; }
@@ -62,25 +39,6 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
       setError("Completa todos los campos obligatorios (nombre, email, contraseña y documento)");
       return;
     }
-    if (!emailVerificado) {
-      setCargando(true);
-      setError("");
-      try {
-        const result = await sendVerificationCode(form.email);
-        if (result.error) {
-          setError(result.error);
-          setCargando(false);
-          return;
-        }
-        setVerificando(true);
-        setCargando(false);
-        setError("Código enviado! Revisa tu correo.");
-      } catch (err: any) {
-        setCargando(false);
-        setError("Error: " + err.message);
-      }
-      return;
-    }
     setCargando(true);
     setError("");
     try {
@@ -104,7 +62,7 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
       }
       setCargando(false);
       setModo("login");
-      setError("Registro exitoso! Ya puedes iniciar sesión.");
+      setError("Registro exitoso! Revisa tu email para confirmar tu cuenta.");
     } catch (err: any) {
       setCargando(false);
       setError("Error: " + err.message);
@@ -112,30 +70,6 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
   };
 
   const upd = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
-
-  const handleVerificarCodigo = async () => {
-    if (!codigoVerificacion) {
-      setError("Ingresa el código de verificación");
-      return;
-    }
-    setCargando(true);
-    setError("");
-    try {
-      const result = await verifyCode(form.email, codigoVerificacion);
-      if (result.error) {
-        setError(result.error);
-        setCargando(false);
-        return;
-      }
-      setEmailVerificado(true);
-      setVerificando(false);
-      setCargando(false);
-      setError("Email verificado! Ahora completa el registro.");
-    } catch (err: any) {
-      setCargando(false);
-      setError("Error: " + err.message);
-    }
-  };
 
   const bgCard = modoOscuro ? "bg-slate-800/80" : "bg-white/80";
   const bgInput = modoOscuro ? "bg-slate-700 border-slate-600 text-white" : "bg-white border-violet-300 text-slate-800";
@@ -200,30 +134,6 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
               {cargando ? "Cargando..." : "Iniciar Sesión"}
             </button>
           </form>
-        ) : verificando ? (
-          <div className="mt-6 w-full max-w-sm mx-auto">
-            <p className="text-sm mb-3" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>
-              Ingresa el código enviado a {form.email}
-            </p>
-            <input
-              type="text"
-              placeholder="Código de 6 dígitos"
-              value={codigoVerificacion}
-              onChange={e => setCodigoVerificacion(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className={`w-full px-3 py-2 rounded-md border outline-0 ${bgInput}`}
-              style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
-              maxLength={6}
-            />
-            <button onClick={handleVerificarCodigo} disabled={cargando} className="w-full mt-4 py-3 rounded-md font-semibold disabled:opacity-50 bg-violet-500 text-white hover:bg-violet-600">
-              {cargando ? "Verificando..." : "Verificar código"}
-            </button>
-            <button onClick={() => { setVerificando(false); setEmailVerificado(false); setCodigoVerificacion(''); }} className="w-full mt-2 text-sm hover:underline" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>
-              ← Cambiar correo
-            </button>
-            <button onClick={async () => { setCargando(true); await sendVerificationCode(form.email); setCargando(false); setError("Código reenviado!"); }} disabled={cargando} className="w-full mt-2 text-sm hover:underline" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>
-              Reenviar código
-            </button>
-          </div>
         ) : (
           <form className="mt-6 w-full max-w-sm mx-auto" onSubmit={(e) => { e.preventDefault(); handleRegistro(); }}>
             <div className="mt-3">
