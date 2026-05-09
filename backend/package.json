@@ -1,0 +1,13 @@
+{
+  "name": "farmacia-app-backend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "resend": "^6.12.3"
+  }
+}
