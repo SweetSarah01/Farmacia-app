@@ -158,8 +158,9 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ init_point: result.init_point, preference_id: result.id }));
       } catch (err) {
+        console.error('Error creando preferencia MP:', err?.cause || err.message || err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: err.message }));
+        res.end(JSON.stringify({ error: err?.message || err?.toString() || 'Error interno' }));
       }
     });
     return;
