@@ -289,7 +289,13 @@ const server = http.createServer((req, res) => {
 
     let body = data.toString();
 
+    let headers: Record<string, string> = { 'Content-Type': contentType };
+
     if (filePath.endsWith('index.html')) {
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      headers['Pragma'] = 'no-cache';
+      headers['Expires'] = '0';
+
       const encoded = Buffer.from(JSON.stringify({
         VITE_SUPABASE_URL: SUPABASE_URL,
         VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
@@ -297,9 +303,11 @@ const server = http.createServer((req, res) => {
       })).toString('base64');
       const envScript = '<script>window.__ENV__=JSON.parse(atob("' + encoded + '"))</script>';
       body = body.replace('</head>', envScript + '</head>');
+    } else {
+      headers['Cache-Control'] = 'max-age=31536000, immutable';
     }
 
-    res.writeHead(200, { 'Content-Type': contentType });
+    res.writeHead(200, headers);
     res.end(body);
   });
 });
