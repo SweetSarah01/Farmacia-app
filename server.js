@@ -203,11 +203,13 @@ const server = http.createServer((req, res) => {
           payment_method_id: 'visa',
           payer: { email: payer_email || 'comprador@email.com' },
         };
+        const idempotencyKey = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const payResp = await fetch('https://api.mercadopago.com/v1/payments', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`,
             'Content-Type': 'application/json',
+            'X-Idempotency-Key': idempotencyKey,
           },
           body: JSON.stringify(payBody),
         });
