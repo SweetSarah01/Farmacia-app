@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
 import { config as dotenvConfig } from 'dotenv';
+import { MercadoPagoConfig, Preference } from 'mercadopago';
 
 dotenvConfig({ path: '.env.local' });
 
@@ -26,6 +27,18 @@ const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const resend = new Resend(RESEND_API_KEY);
 const verificationCodes = new Map();
+
+const MERCADOPAGO_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN || '';
+let mpClient = null;
+if (MERCADOPAGO_ACCESS_TOKEN && MERCADOPAGO_ACCESS_TOKEN !== 'APP_USR-XXXXXXXX-XXXXXXX-XXXXXX-XXXXXXXX') {
+  const client = new MercadoPagoConfig({ accessToken: MERCADOPAGO_ACCESS_TOKEN });
+  mpClient = { client, preference: new Preference(client) };
+  console.log('Mercado Pago SDK initialized');
+} else {
+  console.log('Mercado Pago not configured (set MERCADOPAGO_ACCESS_TOKEN in .env.local)');
+}
+
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
 const MIME = {
   '.html': 'text/html',
@@ -106,6 +119,64 @@ const server = http.createServer((req, res) => {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
       }
+    });
+    return;
+  }
+
+  if (req.url === '/api/create-preference' && req.method === 'POST') {
+    if (!mpClient) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Mercado Pago no configurado' }));
+      return;
+    }
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const { items, payer, external_reference } = JSON.parse(body);
+        const backUrls = {
+          success: `${BASE_URL}/?mp=success&id=${external_reference}`,
+          failure: `${BASE_URL}/?mp=failure`,
+          pending: `${BASE_URL}/?mp=pending`,
+        };
+        const prefBody = {
+          body: {
+            items: items.map((item) => ({
+              title: item.title,
+              quantity: Number(item.quantity),
+              unit_price: Number(item.unit_price),
+              currency_id: 'COP',
+            })),
+            payer: { email: payer?.email || 'comprador@email.com' },
+            external_reference,
+            back_urls: backUrls,
+            auto_return: 'approved',
+            notification_url: `${BASE_URL}/api/mercadopago-webhook`,
+          },
+        };
+        const result = await mpClient.preference.create(prefBody);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ init_point: result.init_point, preference_id: result.id }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  if (req.url === '/api/mercadopago-webhook' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const data = JSON.parse(body);
+        console.log('Mercado Pago webhook received:', data);
+      } catch (e) {
+        console.log('Mercado Pago webhook raw body:', body);
+      }
+      res.writeHead(200);
+      res.end('OK');
     });
     return;
   }

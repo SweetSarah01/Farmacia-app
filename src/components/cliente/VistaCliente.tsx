@@ -55,12 +55,35 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
   const [tipoEntrega, setTipoEntrega] = useState<"domicilio" | "recoger">("domicilio");
   const [procesandoPago, setProcesandoPago] = useState(false);
   const [domiciliariosActivos, setDomiciliariosActivos] = useState(0);
-  const [codigoEntrega, setCodigoEntrega] = useState("");
-  const [pedidoSeleccionado, setPedidoSeleccionado] = useState<any>(null);
-  const [editando, setEditando] = useState(false);
-  const [datosEditados, setDatosEditados] = useState({ telefono: "", direccion: "", ciudad: "", barrio: "", fecha_nacimiento: "" });
-  const [subiendoFoto, setSubiendoFoto] = useState(false);
-  const { toast, show, clear } = useToast();
+const [codigoEntrega, setCodigoEntrega] = useState("");
+const [pedidoSeleccionado, setPedidoSeleccionado] = useState<any>(null);
+const [editando, setEditando] = useState(false);
+const [datosEditados, setDatosEditados] = useState({ telefono: "", direccion: "", ciudad: "", barrio: "", fecha_nacimiento: "" });
+const [subiendoFoto, setSubiendoFoto] = useState(false);
+
+const { toast, show, clear } = useToast();
+
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const mp = params.get("mp");
+  if (mp === "success") {
+    const pedidoId = params.get("id") || "";
+    if (pedidoId) {
+      supabase.from("pedidos").select("codigo_verificacion").eq("id", pedidoId).single()
+        .then(({ data }) => {
+          setCodigoEntrega(data?.codigo_verificacion || "(revisa tu pedido)");
+        });
+    }
+    window.history.replaceState({}, "", window.location.pathname);
+    show("¡Pago exitoso! Pedido creado.");
+  } else if (mp === "failure") {
+    show("El pago con Mercado Pago fue cancelado o rechazado", "error");
+    window.history.replaceState({}, "", window.location.pathname);
+  } else if (mp === "pending") {
+    show("El pago con Mercado Pago está pendiente", "warn");
+    window.history.replaceState({}, "", window.location.pathname);
+  }
+}, []);
   
   const subtotal = carrito.reduce((a, i) => a + i.precio * i.cantidad, 0);
   const totalCarrito = carrito.reduce((a, i) => a + i.cantidad, 0);
@@ -366,6 +389,7 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
     
     if (error || !pedido) { 
       show("Error al crear pedido: " + (error?.message || "Sin datos"), "error"); 
+      setProcesandoPago(false);
       return; 
     }
 
@@ -387,6 +411,48 @@ export default function VistaCliente({ perfil, cerrarSesion, seccion: seccionPro
         .eq("estado", "aprobado");
     }
     cargarFormulas();
+
+    if (metodoPago === "tarjeta" || metodoPago === "nequi") {
+      const mpItems = carrito.map(i => ({
+        title: i.nombre,
+        quantity: i.cantidad,
+        unit_price: i.precio,
+      }));
+      if (costoDom > 0) {
+        mpItems.push({
+          title: "Costo de domicilio",
+          quantity: 1,
+          unit_price: costoDom,
+        });
+      }
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || window.location.origin;
+        const resp = await fetch(`${apiUrl}/api/create-preference`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: mpItems,
+            payer: { email: perfil.email || "" },
+            external_reference: pedido.id,
+          }),
+        });
+        const data = await resp.json();
+        if (data.init_point) {
+          setCarrito([]);
+          setProcesandoPago(false);
+          window.location.href = data.init_point;
+          return;
+        } else {
+          show("Error al crear preferencia de Mercado Pago: " + (data.error || "Error desconocido"), "error");
+          setProcesandoPago(false);
+          return;
+        }
+      } catch (err: any) {
+        show("Error de conexión con Mercado Pago: " + err.message, "error");
+        setProcesandoPago(false);
+        return;
+      }
+    }
     
     setCarrito([]);
     setSeccion("pedidos");
@@ -844,6 +910,9 @@ return (
 
             {metodoPago === "tarjeta" && (
               <div className={`space-y-3 sm:space-y-4 mb-6 sm:mb-8 p-4 sm:p-5 rounded-2xl border-2 ${modoOscuro ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-100"}`}>
+                <div className={`text-xs font-semibold mb-2 p-2 rounded-lg ${modoOscuro ? "bg-blue-900/40 text-blue-300" : "bg-blue-100 text-blue-700"}`}>
+                  🔒 Pago procesado por Mercado Pago. Serás redirigido para completar de forma segura.
+                </div>
                 <div className="relative">
                   <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>Número de tarjeta</label>
                   <input placeholder="1234 5678 9012 3456" value={datosPago.numeroTarjeta} onChange={e => setDatosPago(d => ({ ...d, numeroTarjeta: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`} />
@@ -868,6 +937,9 @@ return (
 
             {metodoPago === "nequi" && (
               <div className={`mb-6 sm:mb-8 p-4 sm:p-5 rounded-2xl border-2 ${modoOscuro ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-100"}`}>
+                <div className={`text-xs font-semibold mb-2 p-2 rounded-lg ${modoOscuro ? "bg-blue-900/40 text-blue-300" : "bg-blue-100 text-blue-700"}`}>
+                  🔒 Pago procesado por Mercado Pago. Serás redirigido para pagar con Nequi.
+                </div>
                 <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>Número de celular Nequi</label>
                 <input placeholder="300 123 4567" value={datosPago.numeroCelular} onChange={e => setDatosPago(d => ({ ...d, numeroCelular: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "bg-slate-700 border-slate-600 text-white" : "bg-white border-slate-200 text-slate-800"}`} />
               </div>
@@ -895,7 +967,7 @@ return (
             <div className="flex gap-2 sm:gap-3">
               <button className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 sm:py-4 rounded-xl font-bold transition-all duration-300 hover:scale-[1.02] min-h-[48px]" onClick={() => { setMostrarPago(false); setMetodoPago(""); }}>Cancelar</button>
               <button className={`flex-1 text-white py-3 sm:py-4 rounded-xl font-bold transition-all duration-300 min-h-[48px] ${procesandoPago ? "bg-slate-400" : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 shadow-xl shadow-green-500/40 hover:shadow-green-500/60 hover:scale-[1.02]"}`} onClick={realizarPedido} disabled={procesandoPago}>
-                {procesandoPago ? "Procesando..." : "Confirmar"}
+                {procesandoPago ? "Procesando..." : metodoPago === "efectivo" ? "Confirmar" : "Pagar"}
               </button>
             </div>
           </div>
