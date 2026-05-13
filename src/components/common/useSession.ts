@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../../supabaseClient";
 
 export function useSession() {
   const [session, setSession] = useState<any>(null);
   const [perfil, setPerfil] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
+  const processedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -20,17 +21,19 @@ export function useSession() {
       setCargando(false);
       return;
     }
-    
-    supabase.from("profiles").select("*").eq("id", session.user.id).single()
+
+    const userId = session.user.id;
+    if (processedRef.current.has(userId)) return;
+    processedRef.current.add(userId);
+
+    supabase.from("profiles").select("*").eq("id", userId).single()
       .then(({ data, error }: any) => {
-        console.log("Profile query:", data, error);
         if (data) {
           setPerfil(data);
+          setCargando(false);
         } else {
-          // Perfil no existe, crearlo
-          console.log("Creating profile for user:", session.user.id, session.user.email);
           supabase.from("profiles").insert({
-            id: session.user.id,
+            id: userId,
             email: session.user.email,
             nombre_usuario: session.user.user_metadata?.nombre_usuario || session.user.email?.split("@")[0],
             nombre: session.user.user_metadata?.nombre || session.user.email?.split("@")[0],
@@ -41,11 +44,11 @@ export function useSession() {
             rol: "cliente"
           }).select().single()
           .then(({ data: nuevoPerfil, error: err }: any) => {
-            console.log("Profile created:", nuevoPerfil, err);
+            if (err) console.warn("Error creando perfil:", err.message);
             setPerfil(nuevoPerfil);
+            setCargando(false);
           });
         }
-        setCargando(false);
       });
   }, [session]);
 
