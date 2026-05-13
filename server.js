@@ -134,6 +134,9 @@ const server = http.createServer((req, res) => {
     req.on('end', async () => {
       try {
         const { items, payer, external_reference } = JSON.parse(body);
+        const domain = req.headers['x-forwarded-host'] || req.headers['host'] || 'farmacia-app.site';
+        const protocol = req.headers['x-forwarded-proto'] || 'https';
+        const siteUrl = `${protocol}://${domain}`;
         const mpBody = {
           items: items.map((item) => ({
             title: item.title,
@@ -143,8 +146,13 @@ const server = http.createServer((req, res) => {
           })),
           payer: { email: payer?.email || 'comprador@email.com' },
           external_reference,
+          back_urls: {
+            success: `${siteUrl}/ok`,
+            failure: `${siteUrl}/no`,
+            pending: `${siteUrl}/esp`,
+          },
           auto_return: 'approved',
-          notification_url: `${BASE_URL}/api/mercadopago-webhook`,
+          notification_url: `${siteUrl}/api/mercadopago-webhook`,
         };
 
         const mpResp = await fetch('https://api.mercadopago.com/checkout/preferences', {
