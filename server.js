@@ -289,7 +289,7 @@ const server = http.createServer((req, res) => {
 
     let body = data.toString();
 
-    let headers: Record<string, string> = { 'Content-Type': contentType };
+    let headers = { 'Content-Type': contentType };
 
     if (filePath.endsWith('index.html')) {
       headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
