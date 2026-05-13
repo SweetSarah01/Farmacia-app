@@ -118,29 +118,46 @@ useEffect(() => {
   }, []);
 
   const validarTarjeta = (numero: string): { valida: boolean; tipo: string } => {
-    const limpiar = numero.replace(/\s/g, "");
-    if (!/^\d+$/.test(limpiar)) return { valida: false, tipo: "inválido" };
-    if (limpiar.length < 13 || limpiar.length > 19) return { valida: false, tipo: "inválido" };
-    let suma = 0;
-    let alternar = false;
-    for (let i = limpiar.length - 1; i >= 0; i--) {
-      let digito = parseInt(limpiar[i]);
-      if (alternar) { digito *= 2; if (digito > 9) digito -= 9; }
-      suma += digito;
-      alternar = !alternar;
+    const limpio = numero.replace(/\s/g, "");
+    if (!/^\d+$/.test(limpio) || limpio.length < 13 || limpio.length > 19) return { valida: false, tipo: "" };
+    let suma = 0, alternar = false;
+    for (let i = limpio.length - 1; i >= 0; i--) {
+      let d = parseInt(limpio[i]);
+      if (alternar) { d *= 2; if (d > 9) d -= 9; }
+      suma += d; alternar = !alternar;
     }
-    if (suma % 10 !== 0) return { valida: false, tipo: "inválido" };
-    const primerosDos = parseInt(limpiar.substring(0, 2));
-    if (parseInt(limpiar[0]) === 4) return { valida: true, tipo: "Visa" };
-    if (primerosDos >= 51 && primerosDos <= 55) return { valida: true, tipo: "Mastercard" };
+    if (suma % 10 !== 0) return { valida: false, tipo: "" };
+    const p = parseInt(limpio[0]), p2 = parseInt(limpio.substring(0, 2));
+    if (p === 4) return { valida: true, tipo: "Visa" };
+    if (p2 >= 51 && p2 <= 55) return { valida: true, tipo: "Mastercard" };
+    if (p === 3 && (limpio[1] === "4" || limpio[1] === "7")) return { valida: true, tipo: "Amex" };
+    if (limpio.startsWith("6011") || limpio.startsWith("65") || (parseInt(limpio.substring(0, 3)) >= 644 && parseInt(limpio.substring(0, 3)) <= 649)) return { valida: true, tipo: "Discover" };
     return { valida: true, tipo: "Tarjeta" };
+  };
+
+  const logoMarca: Record<string, string> = {
+    Visa: "💙 VISA",
+    Mastercard: "🧡 MC",
+    Amex: "🤍 Amex",
+    Discover: "🟠 Discover",
+    Tarjeta: "💳",
+  };
+
+  const formatearNumero = (v: string) => {
+    const nums = v.replace(/\D/g, "").slice(0, 19);
+    return nums.replace(/(\d{4})(?=\d)/g, "$1 ");
+  };
+
+  const formatearExpiry = (v: string) => {
+    const nums = v.replace(/\D/g, "").slice(0, 4);
+    if (nums.length >= 3) return nums.slice(0, 2) + "/" + nums.slice(2);
+    return nums;
   };
 
   const validarExpiry = (expiry: string): boolean => {
     const match = expiry.match(/^(0[1-9]|1[0-2])\/(\d{2})$/);
     if (!match) return false;
-    const mes = parseInt(match[1]);
-    const anio = parseInt("20" + match[2]);
+    const mes = parseInt(match[1]), anio = parseInt("20" + match[2]);
     return new Date(anio, mes - 1) > new Date();
   };
 
@@ -969,14 +986,37 @@ return (
 
             {metodoPago === "tarjeta" && (
               <div className={`space-y-3 sm:space-y-4 mb-6 sm:mb-8 p-4 sm:p-5 rounded-2xl border-2 ${modoOscuro ? "bg-slate-800 border-slate-700" : "bg-slate-50 border-slate-100"}`}>
-                <div className={`text-xs font-semibold mb-2 p-2 rounded-lg ${modoOscuro ? "bg-blue-900/40 text-blue-300" : "bg-blue-100 text-blue-700"}`}>
-                  🔒 Pago procesado por Mercado Pago. Serás redirigido para completar de forma segura.
-                </div>
                 <div className="relative">
                   <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>Número de tarjeta</label>
-                  <input placeholder="1234 5678 9012 3456" value={datosPago.numeroTarjeta} onChange={e => setDatosPago(d => ({ ...d, numeroTarjeta: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`} />
-                  <span className="absolute right-4 top-9 text-slate-400">💳</span>
+                  <input
+                    placeholder="1234 5678 9012 3456"
+                    value={datosPago.numeroTarjeta}
+                    onChange={e => setDatosPago(d => ({ ...d, numeroTarjeta: formatearNumero(e.target.value) }))}
+                    inputMode="numeric"
+                    className={`w-full px-4 py-3 pr-12 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base tracking-wider ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`}
+                  />
+                  <div className="absolute right-3 top-8 text-sm font-bold">
+                    {datosPago.numeroTarjeta.replace(/\s/g, "").length < 13 ? (
+                      <span className="text-slate-400">💳</span>
+                    ) : (
+                      (() => {
+                        const info = validarTarjeta(datosPago.numeroTarjeta);
+                        return info.valida ? (
+                          <span className="text-green-500">{info.tipo === "Visa" ? "💙" : info.tipo === "Mastercard" ? "🧡" : "✅"}</span>
+                        ) : (
+                          <span className="text-red-500">❌</span>
+                        );
+                      })()
+                    )}
+                  </div>
                 </div>
+                {datosPago.numeroTarjeta.replace(/\s/g, "").length >= 13 && (
+                  <div className={`text-xs font-semibold ${validarTarjeta(datosPago.numeroTarjeta).valida ? "text-green-600" : "text-red-500"}`}>
+                    {validarTarjeta(datosPago.numeroTarjeta).valida
+                      ? "✅ " + validarTarjeta(datosPago.numeroTarjeta).tipo + " válida"
+                      : "❌ Tarjeta no válida"}
+                  </div>
+                )}
                 <div>
                   <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>Nombre del titular</label>
                   <input placeholder="Como aparece en la tarjeta" value={datosPago.nombreTitular} onChange={e => setDatosPago(d => ({ ...d, nombreTitular: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`} />
@@ -984,11 +1024,36 @@ return (
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>Vencimiento</label>
-                    <input placeholder="MM/AA" value={datosPago.expiry} onChange={e => setDatosPago(d => ({ ...d, expiry: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`} />
+                    <input
+                      placeholder="MM/AA"
+                      value={datosPago.expiry}
+                      onChange={e => setDatosPago(d => ({ ...d, expiry: formatearExpiry(e.target.value) }))}
+                      inputMode="numeric"
+                      maxLength={5}
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`}
+                    />
+                    {datosPago.expiry.length === 5 && (
+                      <div className={`text-xs mt-1 font-semibold ${validarExpiry(datosPago.expiry) ? "text-green-600" : "text-red-500"}`}>
+                        {validarExpiry(datosPago.expiry) ? "✅ Válida" : "❌ Fecha inválida"}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>CVV</label>
-                    <input placeholder="•••" type="password" value={datosPago.cvv} onChange={e => setDatosPago(d => ({ ...d, cvv: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`} />
+                    <input
+                      placeholder="•••"
+                      type="password"
+                      value={datosPago.cvv}
+                      onChange={e => setDatosPago(d => ({ ...d, cvv: e.target.value.replace(/\D/g, "").slice(0, 4) }))}
+                      inputMode="numeric"
+                      maxLength={4}
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "border-slate-600 bg-slate-700 text-white" : "border-slate-200 bg-white text-slate-800"}`}
+                    />
+                    {datosPago.cvv.length >= 3 && (
+                      <div className={`text-xs mt-1 font-semibold ${validarCVV(datosPago.cvv) ? "text-green-600" : "text-red-500"}`}>
+                        {validarCVV(datosPago.cvv) ? "✅ OK" : "❌ Inválido"}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1026,7 +1091,7 @@ return (
             <div className="flex gap-2 sm:gap-3">
               <button className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 sm:py-4 rounded-xl font-bold transition-all duration-300 hover:scale-[1.02] min-h-[48px]" onClick={() => { setMostrarPago(false); setMetodoPago(""); }}>Cancelar</button>
               <button className={`flex-1 text-white py-3 sm:py-4 rounded-xl font-bold transition-all duration-300 min-h-[48px] ${procesandoPago ? "bg-slate-400" : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500 shadow-xl shadow-green-500/40 hover:shadow-green-500/60 hover:scale-[1.02]"}`} onClick={realizarPedido} disabled={procesandoPago}>
-                {procesandoPago ? "Procesando..." : metodoPago === "efectivo" ? "Confirmar" : "Pagar"}
+                {procesandoPago ? "Procesando..." : metodoPago === "efectivo" ? "Confirmar" : `Pagar ${fmtCOP(totalConDom)}`}
               </button>
             </div>
           </div>
