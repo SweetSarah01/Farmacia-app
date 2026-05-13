@@ -292,9 +292,10 @@ const server = http.createServer((req, res) => {
     let headers: Record<string, string> = { 'Content-Type': contentType };
 
     if (filePath.endsWith('index.html')) {
-      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      headers['Cache-Control'] = 'private, no-cache, no-store, must-revalidate';
       headers['Pragma'] = 'no-cache';
       headers['Expires'] = '0';
+      headers['Vary'] = 'Cookie, Authorization, Accept-Encoding';
 
       const encoded = Buffer.from(JSON.stringify({
         VITE_SUPABASE_URL: SUPABASE_URL,
