@@ -3,6 +3,20 @@ import { supabase } from "../../supabaseClient";
 import { useTheme } from "../../App";
 import BlobsAuth from "../auth/BlobsAuth";
 
+const sendVerificationCode = async (email: string) => {
+  const res = await fetch('/api/send-verification', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email })
+  });
+  return res.json();
+};
+
+const verifyCode = async (email: string, code: string) => {
+  const res = await fetch('/api/verify-code', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, code })
+  });
+  return res.json();
+};
+
 function fmtCOP(price: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(price);
 }
@@ -32,6 +46,10 @@ function RegistrationModal({ onClose, onSuccess, onLogin }: { onClose: () => voi
     email: "", password: "", responsable_nombre: "", responsable_documento: ""
   });
 
+  const [verificando, setVerificando] = useState(false);
+  const [codigo, setCodigo] = useState("");
+  const [emailVerif, setEmailVerif] = useState("");
+
   const handleClienteSubmit = async () => {
     setError("");
     
@@ -42,6 +60,28 @@ function RegistrationModal({ onClose, onSuccess, onLogin }: { onClose: () => voi
     }
     
     setCargando(true);
+    const result = await sendVerificationCode(cliente.email.trim());
+    setCargando(false);
+    if (result.error) {
+      setError(result.error);
+      alert("Error al enviar código: " + result.error);
+      return;
+    }
+    setEmailVerif(cliente.email.trim());
+    setVerificando(true);
+  };
+
+  const handleVerifyCliente = async () => {
+    if (!codigo) { setError("Ingresa el código"); return; }
+    setCargando(true);
+    setError("");
+    const result = await verifyCode(emailVerif, codigo);
+    if (result.error) {
+      setCargando(false);
+      setError(result.error);
+      alert("Código incorrecto: " + result.error);
+      return;
+    }
     
     try {
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -102,6 +142,7 @@ function RegistrationModal({ onClose, onSuccess, onLogin }: { onClose: () => voi
       }
       
       setCargando(false);
+      setVerificando(false);
       onSuccess();
       alert("Registro exitoso! Por favor inicia sesion.");
       window.location.reload();
@@ -118,6 +159,27 @@ function RegistrationModal({ onClose, onSuccess, onLogin }: { onClose: () => voi
       return;
     }
     setCargando(true);
+    const result = await sendVerificationCode(farmacia.email);
+    setCargando(false);
+    if (result.error) {
+      alert("Error al enviar código: " + result.error);
+      return;
+    }
+    setEmailVerif(farmacia.email);
+    setVerificando(true);
+  };
+
+  const handleVerifyFarmacia = async () => {
+    if (!codigo) { setError("Ingresa el código"); return; }
+    setCargando(true);
+    setError("");
+    const result = await verifyCode(emailVerif, codigo);
+    if (result.error) {
+      setCargando(false);
+      setError(result.error);
+      alert("Código incorrecto: " + result.error);
+      return;
+    }
     
     try {
       let authUser = null;
@@ -262,7 +324,31 @@ function RegistrationModal({ onClose, onSuccess, onLogin }: { onClose: () => voi
           </button>
         </div>
 
-        {tipo === "cliente" ? (
+        {verificando ? (
+          <div className="space-y-3">
+            <p className="text-center text-lg font-semibold" style={{ color: modoOscuro ? '#fff' : '#1f2937' }}>
+              Verifica tu correo
+            </p>
+            <p className="text-center text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>
+              Enviamos un código a <strong>{emailVerif}</strong>
+            </p>
+            <input
+              type="text" placeholder="Código de 6 dígitos" maxLength={6}
+              value={codigo}
+              onChange={e => {
+                const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+                setCodigo(v);
+                if (v.length === 6) setTimeout(() => handleVerifyCliente(), 100);
+              }}
+              className={`w-full px-4 py-3 rounded-lg border text-center text-lg tracking-widest ${bgInput}`}
+            />
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+            <button onClick={handleVerifyCliente} disabled={cargando || codigo.length !== 6}
+              className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-500 disabled:opacity-50">
+              {cargando ? "Verificando..." : "Verificar código"}
+            </button>
+          </div>
+        ) : tipo === "cliente" ? (
           <div className="space-y-3">
             <input placeholder="Nombre completo *" value={cliente.nombre} onChange={e => setCliente(c => ({ ...c, nombre: e.target.value }))} className={`w-full px-4 py-3 rounded-lg border ${bgInput}`} />
             <input placeholder="Documento de identidad *" value={cliente.documento} onChange={e => setCliente(c => ({ ...c, documento: e.target.value }))} className={`w-full px-4 py-3 rounded-lg border ${bgInput}`} />
@@ -275,7 +361,7 @@ function RegistrationModal({ onClose, onSuccess, onLogin }: { onClose: () => voi
             <input placeholder="Nombre de usuario (opcional)" value={cliente.nombre_usuario} onChange={e => setCliente(c => ({ ...c, nombre_usuario: e.target.value }))} className={`w-full px-4 py-3 rounded-lg border ${bgInput}`} />
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button onClick={handleClienteSubmit} disabled={cargando} className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-500 disabled:opacity-50">
-              {cargando ? "Creando..." : "Crear cuenta"}
+              {cargando ? "Enviando código..." : "Crear cuenta"}
             </button>
           </div>
         ) : (

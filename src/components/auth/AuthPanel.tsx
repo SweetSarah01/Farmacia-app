@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabaseClient";
 import { useTheme } from "../../App";
@@ -15,6 +15,8 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
   const [mostrarPasswordReg, setMostrarPasswordReg] = useState(false);
   const [verificando, setVerificando] = useState(false);
   const [codigo, setCodigo] = useState("");
+  const [reenviando, setReenviando] = useState(false);
+  const [tiempoRestante, setTiempoRestante] = useState(0);
 
   const sendVerificationCode = async (email: string) => {
     const res = await fetch('/api/send-verification', {
@@ -32,6 +34,23 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
       body: JSON.stringify({ email, code })
     });
     return res.json();
+  };
+
+  useEffect(() => {
+    if (tiempoRestante <= 0) return;
+    const t = setInterval(() => setTiempoRestante(p => p - 1), 1000);
+    return () => clearInterval(t);
+  }, [tiempoRestante]);
+
+  const enviarCodigo = async (email: string) => {
+    setError("");
+    const result = await sendVerificationCode(email);
+    if (result.error) {
+      setError(result.error);
+      return false;
+    }
+    setTiempoRestante(60);
+    return true;
   };
 
   const handleLogin = async () => {
@@ -62,14 +81,9 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
     setCargando(true);
     setError("");
     try {
-      const result = await sendVerificationCode(form.email);
-      if (result.error) {
-        setError(result.error);
-        setCargando(false);
-        return;
-      }
+      const ok = await enviarCodigo(form.email);
       setCargando(false);
-      setVerificando(true);
+      if (ok) setVerificando(true);
     } catch (err: any) {
       setCargando(false);
       setError("Error: " + err.message);
@@ -115,6 +129,13 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
     }
   };
 
+  const reenviarCodigo = async () => {
+    setReenviando(true);
+    setError("");
+    await enviarCodigo(form.email);
+    setReenviando(false);
+  };
+
   const upd = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   const bgCard = modoOscuro ? "bg-slate-800/80" : "bg-white/80";
@@ -148,19 +169,33 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
             <input
               type="text"
               placeholder="Código de 6 dígitos"
+              maxLength={6}
               value={codigo}
-              onChange={e => setCodigo(e.target.value)}
+              onChange={e => {
+                const v = e.target.value.replace(/\D/g, "").slice(0, 6);
+                setCodigo(v);
+                if (v.length === 6) setTimeout(() => handleVerifyCode(), 100);
+              }}
               className={`w-full px-3 py-2 rounded-md border outline-0 text-center text-lg tracking-widest ${bgInput}`}
               style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
             />
             {error && <div className="mt-4 p-2 rounded bg-red-900/50 text-red-400 text-sm">{error}</div>}
             <button
               onClick={handleVerifyCode}
-              disabled={cargando}
+              disabled={cargando || codigo.length !== 6}
               className="w-full mt-4 py-3 rounded-md font-semibold disabled:opacity-50 bg-violet-500 text-white hover:bg-violet-600"
             >
               {cargando ? "Verificando..." : "Verificar código"}
             </button>
+            <div className="mt-3 text-center">
+              <button
+                onClick={reenviarCodigo}
+                disabled={reenviando || tiempoRestante > 0}
+                className="text-sm text-violet-500 hover:text-violet-400 disabled:text-slate-500 disabled:cursor-not-allowed"
+              >
+                {reenviando ? "Reenviando..." : tiempoRestante > 0 ? `Reenviar en ${tiempoRestante}s` : "Reenviar código"}
+              </button>
+            </div>
           </div>
         ) : modo === "login" ? (
           <form className="mt-6" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
