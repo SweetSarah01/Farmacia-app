@@ -34,8 +34,10 @@ export function useSession() {
             email: session.user.email,
             nombre_usuario: session.user.user_metadata?.nombre_usuario || session.user.email?.split("@")[0],
             nombre: session.user.user_metadata?.nombre || session.user.email?.split("@")[0],
+            documento: session.user.user_metadata?.documento || "",
             telefono: session.user.user_metadata?.telefono || "",
             direccion: session.user.user_metadata?.direccion || "",
+            ciudad: session.user.user_metadata?.ciudad || "",
             rol: "cliente"
           }).select().single()
           .then(({ data: nuevoPerfil, error: err }: any) => {
