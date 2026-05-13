@@ -135,9 +135,9 @@ const server = http.createServer((req, res) => {
       try {
         const { items, payer, external_reference } = JSON.parse(body);
         const backUrls = {
-          success: `${BASE_URL}/?mp=success&id=${external_reference}`,
-          failure: `${BASE_URL}/?mp=failure`,
-          pending: `${BASE_URL}/?mp=pending`,
+          success: `${BASE_URL}/mp/success`,
+          failure: `${BASE_URL}/mp/failure`,
+          pending: `${BASE_URL}/mp/pending`,
         };
         const prefBody = {
           body: {

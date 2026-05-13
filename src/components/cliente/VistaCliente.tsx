@@ -64,24 +64,24 @@ const [subiendoFoto, setSubiendoFoto] = useState(false);
 const { toast, show, clear } = useToast();
 
 useEffect(() => {
+  const path = window.location.pathname;
   const params = new URLSearchParams(window.location.search);
-  const mp = params.get("mp");
-  if (mp === "success") {
-    const pedidoId = params.get("id") || "";
-    if (pedidoId) {
-      supabase.from("pedidos").select("codigo_verificacion").eq("id", pedidoId).single()
+  const extRef = params.get("external_reference") || "";
+  if (path === "/mp/success") {
+    if (extRef) {
+      supabase.from("pedidos").select("codigo_verificacion").eq("id", extRef).single()
         .then(({ data }) => {
           setCodigoEntrega(data?.codigo_verificacion || "(revisa tu pedido)");
         });
     }
-    window.history.replaceState({}, "", window.location.pathname);
+    window.history.replaceState({}, "", "/");
     show("¡Pago exitoso! Pedido creado.");
-  } else if (mp === "failure") {
+  } else if (path === "/mp/failure") {
     show("El pago con Mercado Pago fue cancelado o rechazado", "error");
-    window.history.replaceState({}, "", window.location.pathname);
-  } else if (mp === "pending") {
+    window.history.replaceState({}, "", "/");
+  } else if (path === "/mp/pending") {
     show("El pago con Mercado Pago está pendiente", "warn");
-    window.history.replaceState({}, "", window.location.pathname);
+    window.history.replaceState({}, "", "/");
   }
 }, []);
   
