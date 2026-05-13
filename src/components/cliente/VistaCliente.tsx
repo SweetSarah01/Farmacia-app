@@ -327,6 +327,26 @@ useEffect(() => {
     setSubiendoFoto(false);
   };
 
+  const tokenizarTarjeta = async () => {
+    const pubKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+    if (!pubKey) throw new Error("MP public key no configurada");
+    const [mes, anio] = datosPago.expiry.split("/");
+    const resp = await fetch(`https://api.mercadopago.com/v1/card_tokens?public_key=${pubKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        card_number: datosPago.numeroTarjeta.replace(/\s/g, ""),
+        cardholder: { name: datosPago.nombreTitular },
+        expiration_month: parseInt(mes),
+        expiration_year: parseInt("20" + anio),
+        security_code: datosPago.cvv,
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data?.message || data?.error || "Error al tokenizar tarjeta");
+    return data.id;
+  };
+
   const realizarPedido = async () => {
     if (!metodoPago) { show("Selecciona un método de pago", "error"); return; }
     
@@ -412,7 +432,40 @@ useEffect(() => {
     }
     cargarFormulas();
 
-    if (metodoPago === "tarjeta" || metodoPago === "nequi") {
+    if (metodoPago === "tarjeta") {
+      try {
+        const cardToken = await tokenizarTarjeta();
+        const apiUrl = import.meta.env.VITE_API_URL || window.location.origin;
+        const payResp = await fetch(`${apiUrl}/api/create-card-payment`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            token: cardToken,
+            transaction_amount: totalConDom,
+            description: `Pedido #${pedido.id?.slice(-6)} - FarmaciaApp`,
+            payer_email: perfil.email || "",
+            installments: 1,
+          }),
+        });
+        const payData = await payResp.json();
+        if (!payResp.ok || payData.status !== "approved") {
+          show("El pago fue rechazado: " + (payData.error || "intenta de nuevo"), "error");
+          setProcesandoPago(false);
+          return;
+        }
+        setCarrito([]);
+        setSeccion("pedidos");
+        setProcesandoPago(false);
+        setCodigoEntrega(codigoVerificacion);
+        show("¡Pago exitoso! Pedido realizado. Código: " + codigoVerificacion);
+      } catch (err: any) {
+        show("Error de pago: " + err.message, "error");
+        setProcesandoPago(false);
+      }
+      return;
+    }
+
+    if (metodoPago === "nequi") {
       const mpItems = carrito.map(i => ({
         title: i.nombre,
         quantity: i.cantidad,
@@ -443,12 +496,12 @@ useEffect(() => {
           window.location.href = data.init_point;
           return;
         } else {
-          show("Error al crear preferencia de Mercado Pago: " + (data.error || "Error desconocido"), "error");
+          show("Error al crear preferencia: " + (data.error || "Error desconocido"), "error");
           setProcesandoPago(false);
           return;
         }
       } catch (err: any) {
-        show("Error de conexión con Mercado Pago: " + err.message, "error");
+        show("Error de conexión: " + err.message, "error");
         setProcesandoPago(false);
         return;
       }

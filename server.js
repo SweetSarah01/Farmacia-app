@@ -184,6 +184,55 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (req.url === '/api/create-card-payment' && req.method === 'POST') {
+    if (!MERCADOPAGO_ACCESS_TOKEN) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Mercado Pago no configurado' }));
+      return;
+    }
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const { token, transaction_amount, description, payer_email, installments } = JSON.parse(body);
+        const payBody = {
+          token,
+          transaction_amount: Number(transaction_amount),
+          description: description || 'Compra FarmaciaApp',
+          installments: installments || 1,
+          payment_method_id: 'visa',
+          payer: { email: payer_email || 'comprador@email.com' },
+        };
+        const payResp = await fetch('https://api.mercadopago.com/v1/payments', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payBody),
+        });
+        const payData = await payResp.json();
+        if (!payResp.ok) {
+          console.error('MP payment error:', JSON.stringify(payData));
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: payData?.message || payData?.cause?.[0]?.description || JSON.stringify(payData) }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          id: payData.id,
+          status: payData.status,
+          status_detail: payData.status_detail,
+        }));
+      } catch (err) {
+        console.error('Error creando pago MP:', err?.message || err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err?.message || err?.toString() || 'Error interno' }));
+      }
+    });
+    return;
+  }
+
   if (req.url === '/api/mercadopago-webhook' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
