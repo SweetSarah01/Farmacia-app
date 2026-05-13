@@ -327,8 +327,14 @@ useEffect(() => {
     setSubiendoFoto(false);
   };
 
+  const getPubKey = () => {
+    if (import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY) return import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+    if ((window as any).__ENV__?.VITE_MERCADOPAGO_PUBLIC_KEY) return (window as any).__ENV__.VITE_MERCADOPAGO_PUBLIC_KEY;
+    return "";
+  };
+
   const tokenizarTarjeta = async () => {
-    const pubKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+    const pubKey = getPubKey();
     if (!pubKey) throw new Error("MP public key no configurada");
     const [mes, anio] = datosPago.expiry.split("/");
     const resp = await fetch(`https://api.mercadopago.com/v1/card_tokens?public_key=${pubKey}`, {

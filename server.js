@@ -268,7 +268,11 @@ const server = http.createServer((req, res) => {
     let body = data.toString();
 
     if (filePath.endsWith('index.html')) {
-      const encoded = Buffer.from(JSON.stringify({ VITE_SUPABASE_URL: SUPABASE_URL, VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY })).toString('base64');
+      const encoded = Buffer.from(JSON.stringify({
+        VITE_SUPABASE_URL: SUPABASE_URL,
+        VITE_SUPABASE_ANON_KEY: SUPABASE_ANON_KEY,
+        VITE_MERCADOPAGO_PUBLIC_KEY: process.env.VITE_MERCADOPAGO_PUBLIC_KEY || '',
+      })).toString('base64');
       const envScript = '<script>window.__ENV__=JSON.parse(atob("' + encoded + '"))</script>';
       body = body.replace('</head>', envScript + '</head>');
     }
