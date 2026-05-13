@@ -3,8 +3,6 @@ import { supabase } from "../../supabaseClient";
 import { Toast, useToast } from "../common/Toast";
 import { useTheme } from "../../App";
 import { estadoLabel } from "../../supabaseClient";
-import visaImg from "../../assets/Visa.png";
-import mcImg from "../../assets/Mastercard.png";
 
 const COSTO_DOMICILIO = 3000;
 
@@ -1004,7 +1002,7 @@ return (
                       (() => {
                         const info = validarTarjeta(datosPago.numeroTarjeta);
                         return info.valida ? (
-                          <span className="text-green-500">{info.tipo === "Visa" ? <img src={visaImg} className="h-5 inline" alt="Visa" /> : info.tipo === "Mastercard" ? <img src={mcImg} className="h-5 inline" alt="Mastercard" /> : "✅"}</span>
+                          <span className="text-green-500">{info.tipo === "Visa" ? <img src="/Visa.png" className="h-5 inline" alt="Visa" /> : info.tipo === "Mastercard" ? <img src="/Mastercard.png" className="h-5 inline" alt="Mastercard" /> : "✅"}</span>
                         ) : (
                           <span className="text-red-500">❌</span>
                         );
