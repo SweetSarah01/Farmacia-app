@@ -11,6 +11,7 @@ import PanelDomiciliario from "./components/domiciliario/PanelDomiciliario";
 import SuperAdminPanel from "./components/admin/SuperAdminPanel";
 import AdminPharmacyPanel from "./components/admin/AdminPharmacyPanel";
 import CatalogoPublico from "./components/publico/CatalogoPublico";
+import VerifyEmail from "./components/auth/VerifyEmail";
 
 export const ThemeContext = createContext<{ modoOscuro: boolean; setModoOscuro: (v: boolean) => void }>({ modoOscuro: true, setModoOscuro: () => {} });
 export const useTheme = () => useContext(ThemeContext);
@@ -23,6 +24,43 @@ function AppContent() {
   const [modoOscuro, setModoOscuro] = useState(true);
   const [perfilOverride, setPerfilOverride] = useState<any>(null);
   const perfilActual = perfilOverride || perfil;
+
+  const [verifyStatus, setVerifyStatus] = useState<{ email: string; token?: string; status: "idle" | "loading" | "success" | "error"; msg?: string }>({ email: "", status: "idle" });
+  const [verifyDone, setVerifyDone] = useState(false);
+
+  useEffect(() => {
+    if (verifyDone) return;
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    const email = params.get("email");
+    if (token && email) {
+      setVerifyStatus({ email, token, status: "loading" });
+      fetch("/api/confirmar-verificacion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, token })
+      }).then(r => r.json()).then(async (result) => {
+        if (result.success && result.data) {
+          const { error } = await supabase.auth.signUp({
+            email: result.data.email,
+            password: result.data.password,
+            options: { data: { nombre: result.data.name, documento: result.data.documento, telefono: result.data.telefono, direccion: result.data.direccion, ciudad: result.data.ciudad } }
+          });
+          if (error) {
+            setVerifyStatus({ email, status: "error", msg: error.message });
+          } else {
+            setVerifyStatus({ email, status: "success", msg: "Cuenta verificada exitosamente. Ya puedes iniciar sesión." });
+          }
+        } else {
+          setVerifyStatus({ email, status: "error", msg: result.error || "Error al verificar" });
+        }
+        setVerifyDone(true);
+      }).catch(() => {
+        setVerifyStatus({ email, status: "error", msg: "Error de conexión" });
+        setVerifyDone(true);
+      });
+    }
+  }, [verifyDone]);
 
   const cerrarSesion = () => supabase.auth.signOut();
 
@@ -76,6 +114,14 @@ const esFarmaceutico = rol === "farmaceutico";
       {modoOscuro ? "☀️" : "🌙"}
     </button>
   );
+
+  if (verifyStatus.status !== "idle") {
+    return (
+      <ThemeContext.Provider value={{ modoOscuro, setModoOscuro }}>
+        <VerifyEmail status={verifyStatus.status} msg={verifyStatus.msg} email={verifyStatus.email} onVolver={() => { setVerifyStatus({ email: "", status: "idle" }); setVerifyDone(false); }} />
+      </ThemeContext.Provider>
+    );
+  }
 
   if (cargando) {
     return (

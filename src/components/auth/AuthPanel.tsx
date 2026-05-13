@@ -1,11 +1,8 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { supabase } from "../../supabaseClient";
 import { useTheme } from "../../App";
-import BlobsAuth from "./BlobsAuth";
 
 export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
-  const navigate = useNavigate();
   const { modoOscuro } = useTheme();
   const [modo, setModo] = useState("login");
   const [form, setForm] = useState({ nombre: "", email: "", password: "", documento: "", direccion: "", telefono: "", ciudad: "" });
@@ -14,44 +11,6 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [mostrarPasswordReg, setMostrarPasswordReg] = useState(false);
   const [verificando, setVerificando] = useState(false);
-  const [codigo, setCodigo] = useState("");
-  const [reenviando, setReenviando] = useState(false);
-  const [tiempoRestante, setTiempoRestante] = useState(0);
-
-  const sendVerificationCode = async (email: string) => {
-    const res = await fetch('/api/send-verification', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    return res.json();
-  };
-
-  const verifyCode = async (email: string, code: string) => {
-    const res = await fetch('/api/verify-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code })
-    });
-    return res.json();
-  };
-
-  useEffect(() => {
-    if (tiempoRestante <= 0) return;
-    const t = setInterval(() => setTiempoRestante(p => p - 1), 1000);
-    return () => clearInterval(t);
-  }, [tiempoRestante]);
-
-  const enviarCodigo = async (email: string) => {
-    setError("");
-    const result = await sendVerificationCode(email);
-    if (result.error) {
-      setError(result.error);
-      return false;
-    }
-    setTiempoRestante(60);
-    return true;
-  };
 
   const handleLogin = async () => {
     if (!form.email || !form.password) { setError("Completa todos los campos"); return; }
@@ -81,59 +40,22 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
     setCargando(true);
     setError("");
     try {
-      const ok = await enviarCodigo(form.email);
+      const res = await fetch('/api/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email, name: form.nombre, password: form.password, documento: form.documento, telefono: form.telefono, direccion: form.direccion, ciudad: form.ciudad })
+      });
+      const result = await res.json();
       setCargando(false);
-      if (ok) setVerificando(true);
-    } catch (err: any) {
-      setCargando(false);
-      setError("Error: " + err.message);
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    if (!codigo) { setError("Ingresa el código de verificación"); return; }
-    setCargando(true);
-    setError("");
-    try {
-      const result = await verifyCode(form.email, codigo);
       if (result.error) {
         setError(result.error);
-        setCargando(false);
-        return;
+      } else {
+        setVerificando(true);
       }
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: {
-          data: {
-            nombre: form.nombre,
-            documento: form.documento,
-            telefono: form.telefono || '',
-            direccion: form.direccion || '',
-            ciudad: form.ciudad || ''
-          }
-        }
-      });
-      if (authError) {
-        setError(authError.message);
-        setCargando(false);
-        return;
-      }
-      setCargando(false);
-      setVerificando(false);
-      setModo("login");
-      setError("Registro exitoso! Ya puedes iniciar sesión.");
     } catch (err: any) {
       setCargando(false);
       setError("Error: " + err.message);
     }
-  };
-
-  const reenviarCodigo = async () => {
-    setReenviando(true);
-    setError("");
-    await enviarCodigo(form.email);
-    setReenviando(false);
   };
 
   const upd = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
@@ -159,43 +81,20 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
         )}
 
         {verificando ? (
-          <div className="mt-6 w-full max-w-sm mx-auto">
+          <div className="mt-6 w-full max-w-sm mx-auto text-center">
+            <div className="text-5xl mb-4">📧</div>
             <p className="text-center text-lg font-semibold mb-2" style={{ color: modoOscuro ? '#fff' : '#1f2937' }}>
-              Verifica tu correo
+              Revisa tu correo
             </p>
             <p className="text-center text-sm mb-4" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>
-              Enviamos un código a <strong>{form.email}</strong>
+              Enviamos un enlace de verificación a <br/>
+              <strong style={{ color: '#a78bfa' }}>{form.email}</strong>
             </p>
-            <input
-              type="text"
-              placeholder="Código de 6 dígitos"
-              maxLength={6}
-              value={codigo}
-              onChange={e => {
-                const v = e.target.value.replace(/\D/g, "").slice(0, 6);
-                setCodigo(v);
-                if (v.length === 6) setTimeout(() => handleVerifyCode(), 100);
-              }}
-              className={`w-full px-3 py-2 rounded-md border outline-0 text-center text-lg tracking-widest ${bgInput}`}
-              style={{ backgroundColor: modoOscuro ? '#1f2937' : '#fff', borderColor: modoOscuro ? '#374151' : '#a78bfa' }}
-            />
+            <p className="text-center text-xs mb-4" style={{ color: modoOscuro ? '#6b7280' : '#9ca3af' }}>
+              Haz clic en el enlace del correo para activar tu cuenta.<br/>
+              El enlace expira en 15 minutos.
+            </p>
             {error && <div className="mt-4 p-2 rounded bg-red-900/50 text-red-400 text-sm">{error}</div>}
-            <button
-              onClick={handleVerifyCode}
-              disabled={cargando || codigo.length !== 6}
-              className="w-full mt-4 py-3 rounded-md font-semibold disabled:opacity-50 bg-violet-500 text-white hover:bg-violet-600"
-            >
-              {cargando ? "Verificando..." : "Verificar código"}
-            </button>
-            <div className="mt-3 text-center">
-              <button
-                onClick={reenviarCodigo}
-                disabled={reenviando || tiempoRestante > 0}
-                className="text-sm text-violet-500 hover:text-violet-400 disabled:text-slate-500 disabled:cursor-not-allowed"
-              >
-                {reenviando ? "Reenviando..." : tiempoRestante > 0 ? `Reenviar en ${tiempoRestante}s` : "Reenviar código"}
-              </button>
-            </div>
           </div>
         ) : modo === "login" ? (
           <form className="mt-6" onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>

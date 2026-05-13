@@ -1,6 +1,7 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
 import { config as dotenvConfig } from 'dotenv';
@@ -26,7 +27,7 @@ const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const resend = new Resend(RESEND_API_KEY);
-const verificationCodes = new Map();
+const pendingVerifications = new Map();
 
 const MERCADOPAGO_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN || '';
 let mpClient = null;
@@ -65,14 +66,33 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => { body += chunk; });
     req.on('end', async () => {
       try {
-        const { email } = JSON.parse(body);
-        const code = Math.floor(100000 + Math.random() * 900000).toString();
-        verificationCodes.set(email, { code, expires: Date.now() + 300000 });
+        const { email, name, password, documento, telefono, direccion, ciudad } = JSON.parse(body);
+        if (!email || !name || !password) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Faltan campos obligatorios' }));
+          return;
+        }
+        const token = crypto.randomUUID();
+        pendingVerifications.set(token, {
+          email, name, password,
+          documento: documento || '', telefono: telefono || '',
+          direccion: direccion || '', ciudad: ciudad || '',
+          expires: Date.now() + 900000
+        });
+        const domain = req.headers['x-forwarded-host'] || req.headers['host'] || 'localhost:8080';
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const verificationLink = `${protocol}://${domain}/verificar?token=${token}&email=${encodeURIComponent(email)}`;
         const { data, error } = await resend.emails.send({
           from: 'FarmaciaApp <no-reply@farmacia-app.site>',
           to: [email],
           subject: 'Verifica tu correo - FarmaciaApp',
-          html: `<p>Tu código de verificación es: <strong>${code}</strong></p><p>Este código expira en 5 minutos.</p>`
+          template: {
+            id: 'fbacd73d-3eb5-4fc4-ae2e-3d8528af6415',
+            variables: {
+              name,
+              verificationLink,
+            },
+          },
         });
         if (error) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
@@ -89,32 +109,27 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.url === '/api/verify-code' && req.method === 'POST') {
+  if (req.url === '/api/confirmar-verificacion' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
     req.on('end', () => {
       try {
-        const { email, code } = JSON.parse(body);
-        const stored = verificationCodes.get(email);
-        if (!stored) {
+        const { email, token } = JSON.parse(body);
+        const pending = pendingVerifications.get(token);
+        if (!pending || pending.email !== email) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'No se encontró código para este correo' }));
+          res.end(JSON.stringify({ error: 'Enlace inválido' }));
           return;
         }
-        if (Date.now() > stored.expires) {
-          verificationCodes.delete(email);
+        if (Date.now() > pending.expires) {
+          pendingVerifications.delete(token);
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'El código ha expirado' }));
+          res.end(JSON.stringify({ error: 'El enlace ha expirado' }));
           return;
         }
-        if (stored.code !== code) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Código incorrecto' }));
-          return;
-        }
-        verificationCodes.delete(email);
+        pendingVerifications.delete(token);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true }));
+        res.end(JSON.stringify({ success: true, data: { email: pending.email, name: pending.name, password: pending.password, documento: pending.documento, telefono: pending.telefono, direccion: pending.direccion, ciudad: pending.ciudad } }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
