@@ -3,19 +3,7 @@ import { supabase } from "../../supabaseClient";
 import { useTheme } from "../../App";
 import BlobsAuth from "../auth/BlobsAuth";
 
-const sendVerificationCode = async (email: string) => {
-  const res = await fetch('/api/send-verification', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email })
-  });
-  return res.json();
-};
 
-const verifyCode = async (email: string, code: string) => {
-  const res = await fetch('/api/verify-code', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, code })
-  });
-  return res.json();
-};
 
 function fmtCOP(price: number) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP" }).format(price);
@@ -47,251 +35,83 @@ function RegistrationModal({ onClose, onSuccess, onLogin }: { onClose: () => voi
   });
 
   const [verificando, setVerificando] = useState(false);
-  const [codigo, setCodigo] = useState("");
   const [emailVerif, setEmailVerif] = useState("");
 
   const handleClienteSubmit = async () => {
     setError("");
-    
     if (!cliente.nombre?.trim() || !cliente.documento?.trim() || !cliente.email?.trim() || !cliente.password || !cliente.telefono?.trim() || !cliente.direccion?.trim() || !cliente.fecha_nacimiento) {
       setError("Los campos con * son obligatorios");
-      alert("Los campos con * son obligatorios");
       return;
     }
-    
     setCargando(true);
-    const result = await sendVerificationCode(cliente.email.trim());
-    setCargando(false);
-    if (result.error) {
-      setError(result.error);
-      alert("Error al enviar código: " + result.error);
-      return;
-    }
-    setEmailVerif(cliente.email.trim());
-    setVerificando(true);
-  };
-
-  const handleVerifyCliente = async () => {
-    if (!codigo) { setError("Ingresa el código"); return; }
-    setCargando(true);
-    setError("");
-    const result = await verifyCode(emailVerif, codigo);
-    if (result.error) {
-      setCargando(false);
-      setError(result.error);
-      alert("Código incorrecto: " + result.error);
-      return;
-    }
-    
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: cliente.email.trim(),
-        password: cliente.password,
+      const res = await fetch('/api/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: cliente.email.trim(),
+          name: cliente.nombre.trim(),
+          password: cliente.password,
+          documento: cliente.documento.trim(),
+          telefono: cliente.telefono.trim(),
+          direccion: cliente.direccion.trim(),
+          ciudad: '',
+          tipo: 'cliente',
+          nombre_usuario: cliente.nombre_usuario.trim(),
+          barrio: cliente.barrio.trim(),
+          fecha_nacimiento: cliente.fecha_nacimiento,
+        })
       });
-      
-      if (authError) {
-        setCargando(false);
-        setError(authError.message);
-        alert("Error: " + authError.message);
+      const result = await res.json();
+      setCargando(false);
+      if (result.error) {
+        setError(result.error);
         return;
       }
-      
-      if (authData?.user) {
-        const { data: existingProfile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("id", authData.user.id)
-          .maybeSingle();
-        
-        let error;
-        if (existingProfile) {
-          ({ error } = await supabase
-            .from("profiles")
-            .update({
-              nombre: cliente.nombre.trim(),
-              nombre_usuario: cliente.nombre_usuario.trim() || null,
-              email: cliente.email.trim(),
-              documento: cliente.documento.trim(),
-              telefono: cliente.telefono.trim(),
-              direccion: cliente.direccion.trim(),
-              barrio: cliente.barrio.trim() || null,
-              fecha_nacimiento: cliente.fecha_nacimiento,
-            })
-            .eq("id", authData.user.id));
-        } else {
-          ({ error } = await supabase.from("profiles").insert({
-            id: authData.user.id,
-            nombre: cliente.nombre.trim(),
-            nombre_usuario: cliente.nombre_usuario.trim() || null,
-            email: cliente.email.trim(),
-            documento: cliente.documento.trim(),
-            telefono: cliente.telefono.trim(),
-            direccion: cliente.direccion.trim(),
-            barrio: cliente.barrio.trim() || null,
-            fecha_nacimiento: cliente.fecha_nacimiento,
-            rol: "cliente"
-          }));
-        }
-        
-        if (error) {
-          setCargando(false);
-          setError(error.message);
-          alert("Error: " + error.message);
-          return;
-        }
-      }
-      
-      setCargando(false);
-      setVerificando(false);
-      onSuccess();
-      alert("Registro exitoso! Por favor inicia sesion.");
-      window.location.reload();
+      setEmailVerif(cliente.email.trim());
+      setVerificando(true);
     } catch (err: any) {
       setCargando(false);
       setError(err.message);
-      alert("Error: " + err.message);
     }
   };
 
   const handleFarmaciaSubmit = async () => {
-    if (!farmacia.nombre || !farmacia.nit || !farmacia.direccion || !farmacia.telefono || !farmacia.email || !farmacia.password || !farmacia.responsable_nombre || !farmacia.responsable_documento) {
-      alert("Todos los campos son obligatorios");
-      return;
-    }
-    setCargando(true);
-    const result = await sendVerificationCode(farmacia.email);
-    setCargando(false);
-    if (result.error) {
-      alert("Error al enviar código: " + result.error);
-      return;
-    }
-    setEmailVerif(farmacia.email);
-    setVerificando(true);
-  };
-
-  const handleVerifyFarmacia = async () => {
-    if (!codigo) { setError("Ingresa el código"); return; }
-    setCargando(true);
     setError("");
-    const result = await verifyCode(emailVerif, codigo);
-    if (result.error) {
-      setCargando(false);
-      setError(result.error);
-      alert("Código incorrecto: " + result.error);
+    if (!farmacia.nombre || !farmacia.nit || !farmacia.direccion || !farmacia.telefono || !farmacia.email || !farmacia.password || !farmacia.responsable_nombre || !farmacia.responsable_documento) {
+      setError("Todos los campos son obligatorios");
       return;
     }
-    
+    setCargando(true);
     try {
-      let authUser = null;
-      
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: farmacia.email,
-        password: farmacia.password,
+      const res = await fetch('/api/send-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: farmacia.email,
+          name: farmacia.responsable_nombre,
+          password: farmacia.password,
+          documento: farmacia.responsable_documento,
+          telefono: farmacia.telefono,
+          direccion: farmacia.direccion,
+          ciudad: farmacia.ciudad,
+          tipo: 'farmacia',
+          nombre_farmacia: farmacia.nombre,
+          nit: farmacia.nit,
+          barrio: farmacia.barrio,
+        })
       });
-      
-      if (authError) {
-        if (authError.message.includes("already been registered") || authError.message.includes("User already registered")) {
-          const { data: existingAuth } = await supabase.auth.signInWithPassword({
-            email: farmacia.email,
-            password: farmacia.password,
-          });
-          
-          if (existingAuth?.user) {
-            authUser = existingAuth.user;
-            await supabase.auth.signOut();
-          } else {
-            alert("El usuario ya existe. Intenta iniciar sesion.");
-            setCargando(false);
-            return;
-          }
-        } else {
-          alert("Error: " + authError.message);
-          setCargando(false);
-          return;
-        }
-      } else if (authData?.user) {
-        authUser = authData.user;
-        await supabase.auth.signOut();
-      } else {
-        alert("No se pudo crear el usuario");
-        setCargando(false);
-        return;
-      }
-      
-      if (!authUser) {
-        alert("Error al obtener usuario");
-        setCargando(false);
-        return;
-      }
-      
-      const { data: pharmacyData, error: pharmacyError } = await supabase.from("pharmacies").insert({
-        nombre: farmacia.nombre,
-        nit: farmacia.nit,
-        direccion: farmacia.direccion,
-        barrio: farmacia.barrio,
-        ciudad: farmacia.ciudad,
-        telefono: farmacia.telefono,
-        email: farmacia.email,
-        responsable_nombre: farmacia.responsable_nombre,
-        estado: "pendiente",
-        user_id: authUser.id
-      }).select().single();
-      
-      if (pharmacyError) {
-        alert("Error al guardar pharmacy: " + pharmacyError.message);
-        setCargando(false);
-        return;
-      }
-      
-      const { data: perfilExistente } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("id", authUser.id)
-        .maybeSingle();
-      
-      if (perfilExistente) {
-        const { error: perfilError } = await supabase.from("profiles").update({
-          email: farmacia.email,
-          nombre: farmacia.responsable_nombre,
-          documento: farmacia.responsable_documento,
-          telefono: farmacia.telefono,
-          direccion: farmacia.direccion,
-          rol: "admin",
-          pharmacy_id: pharmacyData.id
-        }).eq("id", authUser.id);
-        
-        if (perfilError) {
-          alert("Error al actualizar perfil: " + perfilError.message);
-          setCargando(false);
-          return;
-        }
-      } else {
-        const { error: perfilError } = await supabase.from("profiles").insert({
-          id: authUser.id,
-          email: farmacia.email,
-          nombre: farmacia.responsable_nombre,
-          documento: farmacia.responsable_documento,
-          telefono: farmacia.telefono,
-          direccion: farmacia.direccion,
-          rol: "admin",
-          pharmacy_id: pharmacyData.id
-        });
-        
-        if (perfilError) {
-          alert("Error al crear perfil: " + perfilError.message);
-          setCargando(false);
-          return;
-        }
-      }
-      
+      const result = await res.json();
       setCargando(false);
-      onSuccess();
-      alert("Solicitud enviada! Por favor inicia sesion.");
-      window.location.reload();
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setEmailVerif(farmacia.email);
+      setVerificando(true);
     } catch (err: any) {
-      console.error("Error:", err);
-      alert("Error: " + err.message);
       setCargando(false);
+      setError(err.message);
     }
   };
 
@@ -325,28 +145,20 @@ function RegistrationModal({ onClose, onSuccess, onLogin }: { onClose: () => voi
         </div>
 
         {verificando ? (
-          <div className="space-y-3">
-            <p className="text-center text-lg font-semibold" style={{ color: modoOscuro ? '#fff' : '#1f2937' }}>
-              Verifica tu correo
+          <div className="space-y-3 text-center">
+            <div className="text-5xl mb-2">📧</div>
+            <p className="text-lg font-semibold" style={{ color: modoOscuro ? '#fff' : '#1f2937' }}>
+              Revisa tu correo
             </p>
-            <p className="text-center text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>
-              Enviamos un código a <strong>{emailVerif}</strong>
+            <p className="text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>
+              Enviamos un enlace de verificación a <br/>
+              <strong style={{ color: '#a78bfa' }}>{emailVerif}</strong>
             </p>
-            <input
-              type="text" placeholder="Código de 6 dígitos" maxLength={6}
-              value={codigo}
-              onChange={e => {
-                const v = e.target.value.replace(/\D/g, "").slice(0, 6);
-                setCodigo(v);
-                if (v.length === 6) setTimeout(() => handleVerifyCliente(), 100);
-              }}
-              className={`w-full px-4 py-3 rounded-lg border text-center text-lg tracking-widest ${bgInput}`}
-            />
+            <p className="text-xs" style={{ color: modoOscuro ? '#6b7280' : '#9ca3af' }}>
+              Haz clic en el enlace del correo para activar tu cuenta.<br/>
+              El enlace expira en 15 minutos.
+            </p>
             {error && <p className="text-red-500 text-sm">{error}</p>}
-            <button onClick={handleVerifyCliente} disabled={cargando || codigo.length !== 6}
-              className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-500 disabled:opacity-50">
-              {cargando ? "Verificando..." : "Verificar código"}
-            </button>
           </div>
         ) : tipo === "cliente" ? (
           <div className="space-y-3">
@@ -361,7 +173,7 @@ function RegistrationModal({ onClose, onSuccess, onLogin }: { onClose: () => voi
             <input placeholder="Nombre de usuario (opcional)" value={cliente.nombre_usuario} onChange={e => setCliente(c => ({ ...c, nombre_usuario: e.target.value }))} className={`w-full px-4 py-3 rounded-lg border ${bgInput}`} />
             {error && <p className="text-red-500 text-sm">{error}</p>}
             <button onClick={handleClienteSubmit} disabled={cargando} className="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-500 disabled:opacity-50">
-              {cargando ? "Enviando código..." : "Crear cuenta"}
+              {cargando ? "Enviando..." : "Crear cuenta"}
             </button>
           </div>
         ) : (

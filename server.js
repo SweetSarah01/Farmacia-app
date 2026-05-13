@@ -68,7 +68,7 @@ const server = http.createServer((req, res) => {
       try {
         const parsed = JSON.parse(body);
         console.log('send-verification body:', JSON.stringify(parsed));
-        const { email, name, password, documento, telefono, direccion, ciudad } = parsed;
+        const { email, name, password, documento, telefono, direccion, ciudad, tipo, nombre_usuario, barrio, fecha_nacimiento, nombre_farmacia, nit, responsable_nombre, responsable_documento } = parsed;
         const missing = [];
         if (!email) missing.push('email');
         if (!name) missing.push('name');
@@ -83,6 +83,14 @@ const server = http.createServer((req, res) => {
           email, name, password,
           documento: documento || '', telefono: telefono || '',
           direccion: direccion || '', ciudad: ciudad || '',
+          tipo: tipo || 'auth',
+          nombre_usuario: nombre_usuario || '',
+          barrio: barrio || '',
+          fecha_nacimiento: fecha_nacimiento || '',
+          nombre_farmacia: nombre_farmacia || '',
+          nit: nit || '',
+          responsable_nombre: responsable_nombre || '',
+          responsable_documento: responsable_documento || '',
           expires: Date.now() + 900000
         });
         const domain = req.headers['x-forwarded-host'] || req.headers['host'] || 'localhost:8080';
@@ -135,7 +143,15 @@ const server = http.createServer((req, res) => {
         }
         pendingVerifications.delete(token);
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, data: { email: pending.email, name: pending.name, password: pending.password, documento: pending.documento, telefono: pending.telefono, direccion: pending.direccion, ciudad: pending.ciudad } }));
+        res.end(JSON.stringify({ success: true, data: {
+          email: pending.email, name: pending.name, password: pending.password,
+          documento: pending.documento, telefono: pending.telefono,
+          direccion: pending.direccion, ciudad: pending.ciudad,
+          tipo: pending.tipo, nombre_usuario: pending.nombre_usuario,
+          barrio: pending.barrio, fecha_nacimiento: pending.fecha_nacimiento,
+          nombre_farmacia: pending.nombre_farmacia, nit: pending.nit,
+          responsable_nombre: pending.responsable_nombre, responsable_documento: pending.responsable_documento
+        } }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
