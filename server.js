@@ -200,7 +200,6 @@ const server = http.createServer((req, res) => {
           transaction_amount: Number(transaction_amount),
           description: description || 'Compra FarmaciaApp',
           installments: installments || 1,
-          payment_method_id: 'visa',
           payer: { email: payer_email || 'comprador@email.com' },
         };
         const idempotencyKey = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
