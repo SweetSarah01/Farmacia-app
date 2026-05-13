@@ -72,7 +72,13 @@ const server = http.createServer((req, res) => {
           from: 'FarmaciaApp <no-reply@farmacia-app.site>',
           to: [email],
           subject: 'Verifica tu correo - FarmaciaApp',
-          html: `<p>Tu código de verificación es: <strong>${code}</strong></p><p>Este código expira en 5 minutos.</p>`
+          template: {
+            id: 'fbacd73d-3eb5-4fc4-ae2e-3d8528af6415',
+            variables: {
+              name: email.split('@')[0] || 'usuario',
+              codigo: code,
+            },
+          },
         });
         if (error) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
