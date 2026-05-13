@@ -66,10 +66,16 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => { body += chunk; });
     req.on('end', async () => {
       try {
-        const { email, name, password, documento, telefono, direccion, ciudad } = JSON.parse(body);
-        if (!email || !name || !password) {
+        const parsed = JSON.parse(body);
+        console.log('send-verification body:', JSON.stringify(parsed));
+        const { email, name, password, documento, telefono, direccion, ciudad } = parsed;
+        const missing = [];
+        if (!email) missing.push('email');
+        if (!name) missing.push('name');
+        if (!password) missing.push('password');
+        if (missing.length) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Faltan campos obligatorios' }));
+          res.end(JSON.stringify({ error: 'Faltan campos obligatorios: ' + missing.join(', ') }));
           return;
         }
         const token = crypto.randomUUID();
