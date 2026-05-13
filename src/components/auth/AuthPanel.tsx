@@ -33,7 +33,9 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
   };
 
   const handleRegistro = async () => {
-    if (!form.nombre || !form.email || !form.password || !form.documento) {
+    const f = { ...form };
+    console.log('handleRegistro form:', f);
+    if (!f.nombre || !f.email || !f.password || !f.documento) {
       setError("Completa todos los campos obligatorios (nombre, email, contraseña y documento)");
       return;
     }
@@ -43,7 +45,7 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
       const res = await fetch('/api/send-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: form.email, name: form.nombre, password: form.password, documento: form.documento, telefono: form.telefono, direccion: form.direccion, ciudad: form.ciudad })
+        body: JSON.stringify({ email: f.email, name: f.nombre, password: f.password, documento: f.documento, telefono: f.telefono, direccion: f.direccion, ciudad: f.ciudad })
       });
       const result = await res.json();
       setCargando(false);
@@ -140,7 +142,7 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
             </button>
           </form>
         ) : (
-          <form className="mt-6 w-full max-w-sm mx-auto" onSubmit={(e) => { e.preventDefault(); handleRegistro(); }}>
+          <div className="mt-6 w-full max-w-sm mx-auto">
             <div className="mt-3">
               <label className="block text-sm" style={{ color: modoOscuro ? '#9ca3af' : '#6b7280' }}>Nombre completo *</label>
               <input
@@ -248,10 +250,10 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
 
             {error && <div className="mt-4 p-2 rounded bg-red-900/50 text-red-400 text-sm">{error}</div>}
 
-            <button type="submit" disabled={cargando} className="w-full mt-4 py-3 rounded-md font-semibold disabled:opacity-50 bg-violet-500 text-white hover:bg-violet-600">
+            <button type="button" disabled={cargando} onClick={handleRegistro} className="w-full mt-4 py-3 rounded-md font-semibold disabled:opacity-50 bg-violet-500 text-white hover:bg-violet-600">
               {cargando ? "Cargando..." : "Registrarse"}
             </button>
-          </form>
+          </div>
         )}
       </div>
     </div>
