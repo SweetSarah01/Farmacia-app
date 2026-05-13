@@ -4,7 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
 import { config as dotenvConfig } from 'dotenv';
-import { MercadoPagoConfig, Preference } from 'mercadopago';
+import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 
 dotenvConfig({ path: '.env.local' });
 
@@ -124,7 +124,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.url === '/api/create-preference' && req.method === 'POST') {
-    if (!mpClient) {
+    if (!MERCADOPAGO_ACCESS_TOKEN) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Mercado Pago no configurado' }));
       return;
@@ -134,31 +134,46 @@ const server = http.createServer((req, res) => {
     req.on('end', async () => {
       try {
         const { items, payer, external_reference } = JSON.parse(body);
-        const backUrls = {
-          success: `${BASE_URL}/mp/success`,
-          failure: `${BASE_URL}/mp/failure`,
-          pending: `${BASE_URL}/mp/pending`,
-        };
-        const prefBody = {
-          body: {
-            items: items.map((item) => ({
-              title: item.title,
-              quantity: Number(item.quantity),
-              unit_price: Number(item.unit_price),
-              currency_id: 'COP',
-            })),
-            payer: { email: payer?.email || 'comprador@email.com' },
-            external_reference,
-            back_urls: backUrls,
-            auto_return: 'approved',
-            notification_url: `${BASE_URL}/api/mercadopago-webhook`,
+        const mpBody = {
+          items: items.map((item) => ({
+            title: item.title,
+            quantity: Number(item.quantity),
+            unit_price: Number(item.unit_price),
+            currency_id: 'COP',
+          })),
+          payer: { email: payer?.email || 'comprador@email.com' },
+          external_reference,
+          back_urls: {
+            success: `${BASE_URL}/mp/success`,
+            failure: `${BASE_URL}/mp/failure`,
+            pending: `${BASE_URL}/mp/pending`,
           },
+          auto_return: 'approved',
+          notification_url: `${BASE_URL}/api/mercadopago-webhook`,
         };
-        const result = await mpClient.preference.create(prefBody);
+
+        const mpResp = await fetch('https://api.mercadopago.com/checkout/preferences', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${MERCADOPAGO_ACCESS_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(mpBody),
+        });
+
+        const mpData = await mpResp.json();
+
+        if (!mpResp.ok) {
+          console.error('MP API error:', JSON.stringify(mpData));
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: mpData?.message || mpData?.cause?.[0]?.description || JSON.stringify(mpData) }));
+          return;
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ init_point: result.init_point, preference_id: result.id }));
+        res.end(JSON.stringify({ init_point: mpData.init_point, preference_id: mpData.id }));
       } catch (err) {
-        console.error('Error creando preferencia MP:', err?.cause || err.message || err);
+        console.error('Error creando preferencia MP:', err?.message || err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err?.message || err?.toString() || 'Error interno' }));
       }
