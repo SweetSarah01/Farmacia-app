@@ -144,9 +144,9 @@ const server = http.createServer((req, res) => {
           payer: { email: payer?.email || 'comprador@email.com' },
           external_reference,
           back_urls: {
-            success: `${BASE_URL}/mp/success`,
-            failure: `${BASE_URL}/mp/failure`,
-            pending: `${BASE_URL}/mp/pending`,
+            success: BASE_URL,
+            failure: BASE_URL,
+            pending: BASE_URL,
           },
           auto_return: 'approved',
           notification_url: `${BASE_URL}/api/mercadopago-webhook`,

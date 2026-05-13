@@ -64,10 +64,10 @@ const [subiendoFoto, setSubiendoFoto] = useState(false);
 const { toast, show, clear } = useToast();
 
 useEffect(() => {
-  const path = window.location.pathname;
   const params = new URLSearchParams(window.location.search);
+  const status = params.get("status");
   const extRef = params.get("external_reference") || "";
-  if (path === "/mp/success") {
+  if (status === "approved" || status === "success") {
     if (extRef) {
       supabase.from("pedidos").select("codigo_verificacion").eq("id", extRef).single()
         .then(({ data }) => {
@@ -76,11 +76,11 @@ useEffect(() => {
     }
     window.history.replaceState({}, "", "/");
     show("¡Pago exitoso! Pedido creado.");
-  } else if (path === "/mp/failure") {
-    show("El pago con Mercado Pago fue cancelado o rechazado", "error");
+  } else if (status === "rejected" || status === "cancelled" || status === "failure") {
+    show("El pago fue cancelado o rechazado", "error");
     window.history.replaceState({}, "", "/");
-  } else if (path === "/mp/pending") {
-    show("El pago con Mercado Pago está pendiente", "warn");
+  } else if (status === "pending" || status === "in_process") {
+    show("El pago está pendiente", "warn");
     window.history.replaceState({}, "", "/");
   }
 }, []);
