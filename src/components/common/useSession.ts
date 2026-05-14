@@ -10,6 +10,7 @@ export function useSession() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (!session) setCargando(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
     return () => subscription.unsubscribe();
@@ -18,7 +19,6 @@ export function useSession() {
   useEffect(() => {
     if (!session?.user) {
       setPerfil(null);
-      setCargando(false);
       return;
     }
 
@@ -26,6 +26,7 @@ export function useSession() {
     if (processedRef.current.has(userId)) return;
     processedRef.current.add(userId);
 
+    setCargando(true);
     supabase.from("profiles").select("*").eq("id", userId).maybeSingle()
       .then(({ data, error }: any) => {
         if (data) {

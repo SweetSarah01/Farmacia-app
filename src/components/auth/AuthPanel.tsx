@@ -26,7 +26,6 @@ export default function AuthPanel({ onVolver }: { onVolver?: () => void }) {
       const { error: e } = await supabase.auth.signInWithPassword({ email: emailToUse, password: form.password });
       setCargando(false);
       if (e) { setError("Usuario o contraseña incorrectos"); }
-      else { window.location.reload(); }
     } catch (err: any) {
       setCargando(false);
       setError("Error: " + err.message);
