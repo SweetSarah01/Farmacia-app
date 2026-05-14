@@ -1,0 +1,8 @@
+ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS nombre_usuario TEXT DEFAULT '';
+ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS barrio TEXT DEFAULT '';
+ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS fecha_nacimiento TEXT DEFAULT '';
+ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS nombre_farmacia TEXT DEFAULT '';
+ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS nit TEXT DEFAULT '';
+ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS responsable_nombre TEXT DEFAULT '';
+ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS responsable_documento TEXT DEFAULT '';
+ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();

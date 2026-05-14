@@ -19,6 +19,7 @@ export function useSession() {
   useEffect(() => {
     if (!session?.user) {
       setPerfil(null);
+      processedRef.current.clear();
       return;
     }
 

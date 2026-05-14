@@ -96,7 +96,7 @@ const server = http.createServer((req, res) => {
         const token = crypto.randomUUID();
         let saved = false;
         if (supabase) {
-          const { error: insErr } = await supabase.from('pending_verifications').insert({
+          const fullInsert = {
             token,
             email, name, password,
             documento: documento || '', telefono: telefono || '',
@@ -110,9 +110,18 @@ const server = http.createServer((req, res) => {
             responsable_nombre: responsable_nombre || '',
             responsable_documento: responsable_documento || '',
             expires: Date.now() + 900000
-          });
-          if (!insErr) saved = true;
-          else console.log('DB insert falló, usando Map en memoria:', insErr.message);
+          };
+          let { error: insErr } = await supabase.from('pending_verifications').insert(fullInsert);
+          if (insErr && insErr.message && insErr.message.includes('column') && insErr.message.includes('schema cache')) {
+            const baseInsert = { token, email, name, password, documento: documento || '', telefono: telefono || '', direccion: direccion || '', ciudad: ciudad || '', tipo: tipo || 'auth', expires: Date.now() + 900000 };
+            const { error: baseErr } = await supabase.from('pending_verifications').insert(baseInsert);
+            if (!baseErr) saved = true;
+            else console.log('DB insert falló:', baseErr.message);
+          } else if (!insErr) {
+            saved = true;
+          } else {
+            console.log('DB insert falló:', insErr.message);
+          }
         }
         if (!saved) {
           pendingVerifications.set(token, {
@@ -317,6 +326,44 @@ const server = http.createServer((req, res) => {
         console.error('Error creando pago MP:', err?.message || err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err?.message || err?.toString() || 'Error interno' }));
+      }
+    });
+    return;
+  }
+
+  if (req.url === '/api/crear-usuario' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const { email, password, userData } = JSON.parse(body);
+        if (!supabaseAdmin) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'supabaseAdmin no disponible - falta SUPABASE_SERVICE_ROLE_KEY' }));
+          return;
+        }
+        const { data, error } = await supabaseAdmin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: userData || {},
+        });
+        if (error) {
+          const msg = error.message.toLowerCase();
+          if (msg.includes('already registered') || msg.includes('user already')) {
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, alreadyExists: true }));
+          } else {
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: error.message }));
+          }
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, user: data.user }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err?.message || 'Error interno' }));
       }
     });
     return;

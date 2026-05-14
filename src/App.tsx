@@ -42,84 +42,90 @@ function AppContent() {
       }).then(r => r.json()).then(async (result) => {
         if (result.success && result.data) {
           const d = result.data;
+          const crearRes = await fetch('/api/crear-usuario', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: d.email,
+              password: d.password,
+              userData: {
+                nombre: d.name,
+                documento: d.documento,
+                telefono: d.telefono,
+                direccion: d.direccion,
+                ciudad: d.ciudad,
+                nombre_usuario: d.nombre_usuario || '',
+                barrio: d.barrio || '',
+                fecha_nacimiento: d.fecha_nacimiento || '',
+              }
+            })
+          });
+          const crearResult = await crearRes.json();
+          if (crearResult.error) {
+            setVerifyStatus({ email, status: "error", msg: crearResult.error });
+            setVerifyDone(true);
+            return;
+          }
+          if (crearResult.alreadyExists) {
+            setVerifyStatus({ email, status: "success", msg: "Cuenta ya existente. Inicia sesión con tu correo y contraseña." });
+            setVerifyDone(true);
+            window.history.replaceState({}, '', window.location.pathname);
+            return;
+          }
+          if (!crearResult.user) {
+            setVerifyStatus({ email, status: "error", msg: "Error al crear el usuario" });
+            setVerifyDone(true);
+            window.history.replaceState({}, '', window.location.pathname);
+            return;
+          }
           if (d.tipo === 'farmacia') {
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-              email: d.email, password: d.password
-            });
-            if (authError) {
-              setVerifyStatus({ email, status: "error", msg: authError.message });
+            const { data: pharmacyData, error: pharmError } = await supabase.from("pharmacies").insert({
+              nombre: d.nombre_farmacia,
+              nit: d.nit,
+              direccion: d.direccion,
+              barrio: d.barrio,
+              ciudad: d.ciudad,
+              telefono: d.telefono,
+              email: d.email,
+              responsable_nombre: d.name,
+              estado: "pendiente",
+              user_id: crearResult.user.id
+            }).select().single();
+            if (pharmError) {
+              setVerifyStatus({ email, status: "error", msg: pharmError.message });
               setVerifyDone(true);
               return;
             }
-            if (authData?.user) {
-              await supabase.auth.signOut();
-              const { data: pharmacyData, error: pharmError } = await supabase.from("pharmacies").insert({
-                nombre: d.nombre_farmacia,
-                nit: d.nit,
-                direccion: d.direccion,
-                barrio: d.barrio,
-                ciudad: d.ciudad,
-                telefono: d.telefono,
-                email: d.email,
-                responsable_nombre: d.name,
-                estado: "pendiente",
-                user_id: authData.user.id
-              }).select().single();
-              if (pharmError) {
-                setVerifyStatus({ email, status: "error", msg: pharmError.message });
-                setVerifyDone(true);
-                return;
-              }
-              const { data: perfilExistente } = await supabase.from("profiles").select("id").eq("id", authData.user.id).maybeSingle();
-              if (perfilExistente) {
-                await supabase.from("profiles").update({
-                  email: d.email, nombre: d.name, documento: d.documento,
-                  telefono: d.telefono, direccion: d.direccion,
-                  rol: "admin", pharmacy_id: pharmacyData.id
-                }).eq("id", authData.user.id);
-              } else {
-                await supabase.from("profiles").insert({
-                  id: authData.user.id, email: d.email, nombre: d.name,
-                  documento: d.documento, telefono: d.telefono, direccion: d.direccion,
-                  rol: "admin", pharmacy_id: pharmacyData.id
-                });
-              }
-              setVerifyStatus({ email, status: "success", msg: "Solicitud enviada. Un administrador revisará tu solicitud." });
+            const { data: perfilExistente } = await supabase.from("profiles").select("id").eq("id", crearResult.user.id).maybeSingle();
+            if (perfilExistente) {
+              await supabase.from("profiles").update({
+                email: d.email, nombre: d.name, documento: d.documento,
+                telefono: d.telefono, direccion: d.direccion,
+                rol: "admin", pharmacy_id: pharmacyData.id
+              }).eq("id", crearResult.user.id);
+            } else {
+              await supabase.from("profiles").insert({
+                id: crearResult.user.id, email: d.email, nombre: d.name,
+                documento: d.documento, telefono: d.telefono, direccion: d.direccion,
+                rol: "admin", pharmacy_id: pharmacyData.id
+              });
             }
+            setVerifyStatus({ email, status: "success", msg: "Solicitud enviada. Un administrador revisará tu solicitud." });
           } else {
-            const meta: Record<string, string> = { nombre: d.name, documento: d.documento, telefono: d.telefono, direccion: d.direccion, ciudad: d.ciudad };
-            if (d.nombre_usuario) meta.nombre_usuario = d.nombre_usuario;
-            if (d.barrio) meta.barrio = d.barrio;
-            if (d.fecha_nacimiento) meta.fecha_nacimiento = d.fecha_nacimiento;
-            const { data: authData, error } = await supabase.auth.signUp({
+            await supabase.from("profiles").upsert({
+              id: crearResult.user.id,
               email: d.email,
-              password: d.password,
-              options: { data: meta }
-            });
-            if (error) {
-              const msg = error.message.toLowerCase();
-              if (msg.includes("already registered") || msg.includes("user already")) {
-                setVerifyStatus({ email, status: "success", msg: "Cuenta ya existente. Inicia sesión con tu correo y contraseña." });
-              } else {
-                setVerifyStatus({ email, status: "error", msg: error.message });
-              }
-            } else if (authData?.user) {
-              await supabase.from("profiles").upsert({
-                id: authData.user.id,
-                email: d.email,
-                nombre_usuario: d.nombre_usuario || d.name?.split("@")[0] || d.email.split("@")[0],
-                nombre: d.name,
-                documento: d.documento || "",
-                telefono: d.telefono || "",
-                direccion: d.direccion || "",
-                ciudad: d.ciudad || "",
-                barrio: d.barrio || null,
-                fecha_nacimiento: d.fecha_nacimiento || null,
-                rol: "cliente"
-              }, { onConflict: "id" });
-              await supabase.auth.signOut();
-              setVerifyStatus({ email, status: "success", msg: "Cuenta verificada exitosamente. Ya puedes iniciar sesión." });
-            }
+              nombre_usuario: d.nombre_usuario || d.name?.split("@")[0] || d.email.split("@")[0],
+              nombre: d.name,
+              documento: d.documento || "",
+              telefono: d.telefono || "",
+              direccion: d.direccion || "",
+              ciudad: d.ciudad || "",
+              barrio: d.barrio || null,
+              fecha_nacimiento: d.fecha_nacimiento || null,
+              rol: "cliente"
+            }, { onConflict: "id" });
+            setVerifyStatus({ email, status: "success", msg: "Cuenta verificada exitosamente. Ya puedes iniciar sesión." });
           }
         } else {
           setVerifyStatus({ email, status: "error", msg: result.error || "Error al verificar" });
