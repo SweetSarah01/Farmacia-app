@@ -89,11 +89,11 @@ useEffect(() => {
   const totalCarrito = carrito.reduce((a, i) => a + i.cantidad, 0);
   const costoDom = tipoEntrega === "domicilio" ? COSTO_DOMICILIO : 0;
   const totalConDom = subtotal + costoDom;
-  const farmaciaActual = farmaciasList.find(f => f.id === (farmaciaElegida ?? carrito[0]?.pharmacy_id));
 
   const [todosProductos, setTodosProductos] = useState<any[]>([]);
   const [farmaciaElegida, setFarmaciaElegida] = useState<number | null>(null);
   const [farmaciasList, setFarmaciasList] = useState<any[]>([]);
+  const farmaciaActual = farmaciasList.find(f => f.id === (farmaciaElegida ?? carrito[0]?.pharmacy_id));
 
   useEffect(() => {
     supabase.from("pharmacies").select("*").eq("estado", "aprobado").order("nombre")
