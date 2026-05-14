@@ -113,10 +113,28 @@ const server = http.createServer((req, res) => {
           };
           let { error: insErr } = await supabase.from('pending_verifications').insert(fullInsert);
           if (insErr && insErr.message && insErr.message.includes('column') && insErr.message.includes('schema cache')) {
-            const baseInsert = { token, email, name, password, documento: documento || '', telefono: telefono || '', direccion: direccion || '', ciudad: ciudad || '', tipo: tipo || 'auth', expires: Date.now() + 900000 };
-            const { error: baseErr } = await supabase.from('pending_verifications').insert(baseInsert);
-            if (!baseErr) saved = true;
-            else console.log('DB insert falló:', baseErr.message);
+            const optional = ['documento', 'telefono', 'direccion', 'ciudad', 'tipo'];
+            for (let i = optional.length; i >= 0; i--) {
+              const cols = ['token', 'email', 'name', 'password', ...optional.slice(0, i), 'expires'];
+              if (cols.length <= 4) break;
+              const attempt = {};
+              for (const c of cols) {
+                if (c === 'token') attempt.token = token;
+                else if (c === 'email') attempt.email = email;
+                else if (c === 'name') attempt.name = name;
+                else if (c === 'password') attempt.password = password;
+                else if (c === 'expires') attempt.expires = Date.now() + 900000;
+                else if (c === 'tipo') attempt.tipo = tipo || 'auth';
+                else if (c === 'documento') attempt.documento = documento || '';
+                else if (c === 'telefono') attempt.telefono = telefono || '';
+                else if (c === 'direccion') attempt.direccion = direccion || '';
+                else if (c === 'ciudad') attempt.ciudad = ciudad || '';
+              }
+              if (cols.length <= 4) break;
+              const { error: attemptErr } = await supabase.from('pending_verifications').insert(attempt);
+              if (!attemptErr) { saved = true; break; }
+            }
+            if (!saved) console.log('DB insert falló con todas las combinaciones');
           } else if (!insErr) {
             saved = true;
           } else {

@@ -1,3 +1,4 @@
+ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS ciudad TEXT DEFAULT '';
 ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS nombre_usuario TEXT DEFAULT '';
 ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS barrio TEXT DEFAULT '';
 ALTER TABLE pending_verifications ADD COLUMN IF NOT EXISTS fecha_nacimiento TEXT DEFAULT '';
