@@ -89,6 +89,7 @@ useEffect(() => {
   const totalCarrito = carrito.reduce((a, i) => a + i.cantidad, 0);
   const costoDom = tipoEntrega === "domicilio" ? COSTO_DOMICILIO : 0;
   const totalConDom = subtotal + costoDom;
+  const farmaciaActual = farmaciasList.find(f => f.id === (farmaciaElegida ?? carrito[0]?.pharmacy_id));
 
   const [todosProductos, setTodosProductos] = useState<any[]>([]);
   const [farmaciaElegida, setFarmaciaElegida] = useState<number | null>(null);
@@ -425,7 +426,7 @@ useEffect(() => {
       cliente_nombre: perfil.nombre || perfil.email || "Cliente",
       cliente_telefono: perfil.telefono || "",
       direccion_entrega: tipoEntrega === "recoger" 
-        ? (farmaciasList.find(f => f.id === farmaciaElegida)?.direccion || "")
+        ? (farmaciaActual?.direccion || "")
         : (perfil.direccion || ""),
     }).select().single();
     
@@ -809,10 +810,10 @@ return (
                   <div className={`mt-3 p-4 rounded-xl border ${modoOscuro ? "bg-green-900/30 border-green-700" : "bg-green-50 border-green-200"}`}>
                     <div className={`text-xs font-semibold mb-2 ${modoOscuro ? "text-green-300" : "text-green-700"}`}>Recoger en:</div>
                     <div className={`text-base font-bold ${modoOscuro ? "text-green-300" : "text-green-700"}`}>
-                      🏪 {(farmaciasList.find(f => f.id === farmaciaElegida) as any)?.nombre || "Farmacia seleccionada"}
+                      🏪 {farmaciaActual?.nombre || "Farmacia seleccionada"}
                     </div>
                     <div className={`text-sm mt-1 ${modoOscuro ? "text-green-400" : "text-green-600"}`}>
-                      📍 {(farmaciasList.find(f => f.id === farmaciaElegida) as any)?.direccion || ""}
+                      📍 {farmaciaActual?.direccion || ""}
                     </div>
                   </div>
                 )}
@@ -1114,7 +1115,7 @@ return (
               <div className="flex justify-between text-sm"><span className="text-slate-500">Estado</span><span className="font-bold">{estadoLabel[pedidoSeleccionado.estado] || pedidoSeleccionado.estado}</span></div>
               <div className="flex justify-between text-sm"><span className="text-slate-500">Fecha</span><span className="font-bold">{fmtFecha(pedidoSeleccionado.created_at)}</span></div>
               <div className="flex justify-between text-sm"><span className="text-slate-500">Farmacia</span><span className="font-bold">{pedidoSeleccionado.pharmacies?.nombre || "N/A"}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-slate-500">Dirección</span><span className="font-bold">{tipoEntrega === "recoger" ? (farmaciasList.find(f => f.id === farmaciaElegida)?.direccion || perfil?.direccion) : (perfil?.direccion || "No registrada")}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-slate-500">Dirección</span><span className="font-bold">{tipoEntrega === "recoger" ? (farmaciaActual?.direccion || perfil?.direccion) : (perfil?.direccion || "No registrada")}</span></div>
               {pedidoSeleccionado.codigo_verificacion && pedidoSeleccionado.estado !== "entregado" && pedidoSeleccionado.estado !== "cancelado" && (
                 <div className={`text-center py-3 rounded-xl ${modoOscuro ? "bg-violet-900/40" : "bg-violet-100"}`}>
                   <div className={`text-xs font-semibold ${modoOscuro ? "text-violet-300" : "text-violet-600"}`}>Código de entrega</div>
