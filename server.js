@@ -292,9 +292,12 @@ const server = http.createServer((req, res) => {
           res.end(JSON.stringify({ error: 'Falta userId' }));
           return;
         }
-        if (supabaseAdmin) {
-          await supabaseAdmin.auth.admin.deleteUser(userId);
+        if (!supabaseAdmin) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'supabaseAdmin no disponible - falta SUPABASE_SERVICE_ROLE_KEY' }));
+          return;
         }
+        await supabaseAdmin.auth.admin.deleteUser(userId);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
       } catch (err) {

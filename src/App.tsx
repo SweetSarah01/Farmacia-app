@@ -91,7 +91,7 @@ function AppContent() {
             if (d.nombre_usuario) meta.nombre_usuario = d.nombre_usuario;
             if (d.barrio) meta.barrio = d.barrio;
             if (d.fecha_nacimiento) meta.fecha_nacimiento = d.fecha_nacimiento;
-            const { error } = await supabase.auth.signUp({
+            const { data: authData, error } = await supabase.auth.signUp({
               email: d.email,
               password: d.password,
               options: { data: meta }
@@ -103,7 +103,21 @@ function AppContent() {
               } else {
                 setVerifyStatus({ email, status: "error", msg: error.message });
               }
-            } else {
+            } else if (authData?.user) {
+              await supabase.from("profiles").upsert({
+                id: authData.user.id,
+                email: d.email,
+                nombre_usuario: d.nombre_usuario || d.name?.split("@")[0] || d.email.split("@")[0],
+                nombre: d.name,
+                documento: d.documento || "",
+                telefono: d.telefono || "",
+                direccion: d.direccion || "",
+                ciudad: d.ciudad || "",
+                barrio: d.barrio || null,
+                fecha_nacimiento: d.fecha_nacimiento || null,
+                rol: "cliente"
+              }, { onConflict: "id" });
+              await supabase.auth.signOut();
               setVerifyStatus({ email, status: "success", msg: "Cuenta verificada exitosamente. Ya puedes iniciar sesión." });
             }
           }
