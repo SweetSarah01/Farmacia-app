@@ -94,8 +94,9 @@ const server = http.createServer((req, res) => {
           return;
         }
         const token = crypto.randomUUID();
+        let saved = false;
         if (supabase) {
-          await supabase.from('pending_verifications').insert({
+          const { error: insErr } = await supabase.from('pending_verifications').insert({
             token,
             email, name, password,
             documento: documento || '', telefono: telefono || '',
@@ -110,7 +111,9 @@ const server = http.createServer((req, res) => {
             responsable_documento: responsable_documento || '',
             expires: Date.now() + 900000
           });
-        } else {
+          if (!insErr) saved = true;
+        }
+        if (!saved) {
           pendingVerifications.set(token, {
             email, name, password,
             documento: documento || '', telefono: telefono || '',
