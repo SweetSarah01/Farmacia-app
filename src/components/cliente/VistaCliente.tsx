@@ -806,9 +806,14 @@ return (
                   </div>
                 )}
                 {tipoEntrega === "recoger" && (
-                  <div className={`mt-3 p-3 rounded-xl border ${modoOscuro ? "bg-green-900/30 border-green-700" : "bg-green-50 border-green-200"}`}>
-                    <div className={`text-xs font-semibold mb-1 ${modoOscuro ? "text-green-300" : "text-green-700"}`}>Recoger en:</div>
-                    <div className={`text-sm ${modoOscuro ? "text-green-400" : "text-green-600"}`}>📍 {farmaciasList.find(f => f.id === farmaciaElegida)?.direccion || "Farmacia seleccionada"}</div>
+                  <div className={`mt-3 p-4 rounded-xl border ${modoOscuro ? "bg-green-900/30 border-green-700" : "bg-green-50 border-green-200"}`}>
+                    <div className={`text-xs font-semibold mb-2 ${modoOscuro ? "text-green-300" : "text-green-700"}`}>Recoger en:</div>
+                    <div className={`text-base font-bold ${modoOscuro ? "text-green-300" : "text-green-700"}`}>
+                      🏪 {(farmaciasList.find(f => f.id === farmaciaElegida) as any)?.nombre || "Farmacia seleccionada"}
+                    </div>
+                    <div className={`text-sm mt-1 ${modoOscuro ? "text-green-400" : "text-green-600"}`}>
+                      📍 {(farmaciasList.find(f => f.id === farmaciaElegida) as any)?.direccion || ""}
+                    </div>
                   </div>
                 )}
               </div>
