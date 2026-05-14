@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS pending_verifications (
+  token UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT NOT NULL,
+  name TEXT NOT NULL,
+  password TEXT NOT NULL,
+  documento TEXT DEFAULT '',
+  telefono TEXT DEFAULT '',
+  direccion TEXT DEFAULT '',
+  ciudad TEXT DEFAULT '',
+  tipo TEXT DEFAULT 'auth',
+  nombre_usuario TEXT DEFAULT '',
+  barrio TEXT DEFAULT '',
+  fecha_nacimiento TEXT DEFAULT '',
+  nombre_farmacia TEXT DEFAULT '',
+  nit TEXT DEFAULT '',
+  responsable_nombre TEXT DEFAULT '',
+  responsable_documento TEXT DEFAULT '',
+  expires BIGINT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);

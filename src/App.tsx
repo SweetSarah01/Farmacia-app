@@ -125,9 +125,11 @@ function AppContent() {
           setVerifyStatus({ email, status: "error", msg: result.error || "Error al verificar" });
         }
         setVerifyDone(true);
+        window.history.replaceState({}, '', window.location.pathname);
       }).catch(() => {
         setVerifyStatus({ email, status: "error", msg: "Error de conexión" });
         setVerifyDone(true);
+        window.history.replaceState({}, '', window.location.pathname);
       });
     }
   }, [verifyDone]);

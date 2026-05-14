@@ -38,6 +38,11 @@ try {
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const resend = new Resend(RESEND_API_KEY);
 const pendingVerifications = new Map();
+setInterval(() => {
+  if (supabase) {
+    supabase.from('pending_verifications').delete().lt('expires', Date.now()).then(() => {}).catch(() => {});
+  }
+}, 300000);
 
 const MERCADOPAGO_ACCESS_TOKEN = process.env.MERCADOPAGO_ACCESS_TOKEN || '';
 let mpClient = null;
@@ -89,20 +94,38 @@ const server = http.createServer((req, res) => {
           return;
         }
         const token = crypto.randomUUID();
-        pendingVerifications.set(token, {
-          email, name, password,
-          documento: documento || '', telefono: telefono || '',
-          direccion: direccion || '', ciudad: ciudad || '',
-          tipo: tipo || 'auth',
-          nombre_usuario: nombre_usuario || '',
-          barrio: barrio || '',
-          fecha_nacimiento: fecha_nacimiento || '',
-          nombre_farmacia: nombre_farmacia || '',
-          nit: nit || '',
-          responsable_nombre: responsable_nombre || '',
-          responsable_documento: responsable_documento || '',
-          expires: Date.now() + 900000
-        });
+        if (supabase) {
+          await supabase.from('pending_verifications').insert({
+            token,
+            email, name, password,
+            documento: documento || '', telefono: telefono || '',
+            direccion: direccion || '', ciudad: ciudad || '',
+            tipo: tipo || 'auth',
+            nombre_usuario: nombre_usuario || '',
+            barrio: barrio || '',
+            fecha_nacimiento: fecha_nacimiento || '',
+            nombre_farmacia: nombre_farmacia || '',
+            nit: nit || '',
+            responsable_nombre: responsable_nombre || '',
+            responsable_documento: responsable_documento || '',
+            expires: Date.now() + 900000
+          });
+        } else {
+          pendingVerifications.set(token, {
+            email, name, password,
+            documento: documento || '', telefono: telefono || '',
+            direccion: direccion || '', ciudad: ciudad || '',
+            tipo: tipo || 'auth',
+            nombre_usuario: nombre_usuario || '',
+            barrio: barrio || '',
+            fecha_nacimiento: fecha_nacimiento || '',
+            nombre_farmacia: nombre_farmacia || '',
+            nit: nit || '',
+            responsable_nombre: responsable_nombre || '',
+            responsable_documento: responsable_documento || '',
+            expires: Date.now() + 900000
+          });
+        }
         const domain = req.headers['x-forwarded-host'] || req.headers['host'] || 'localhost:8080';
         const protocol = req.headers['x-forwarded-proto'] || 'http';
         const verificationLink = `${protocol}://${domain}/verificar?token=${token}&email=${encodeURIComponent(email)}`;
@@ -139,19 +162,38 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const { email, token } = JSON.parse(body);
-        const pending = pendingVerifications.get(token);
-        if (!pending || pending.email !== email) {
+        let pending = null;
+        if (supabase) {
+          const { data: rows } = await supabase
+            .from('pending_verifications')
+            .select('*')
+            .eq('token', token)
+            .eq('email', email);
+          if (rows && rows.length > 0) pending = rows[0];
+        } else {
+          pending = pendingVerifications.get(token);
+          if (pending && pending.email !== email) pending = null;
+        }
+        if (!pending) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Enlace inválido' }));
           return;
         }
         if (Date.now() > pending.expires) {
-          pendingVerifications.delete(token);
+          if (supabase) {
+            await supabase.from('pending_verifications').delete().eq('token', token);
+          } else {
+            pendingVerifications.delete(token);
+          }
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'El enlace ha expirado' }));
           return;
         }
-        pendingVerifications.delete(token);
+        if (supabase) {
+          await supabase.from('pending_verifications').delete().eq('token', token);
+        } else {
+          pendingVerifications.delete(token);
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, data: {
           email: pending.email, name: pending.name, password: pending.password,
