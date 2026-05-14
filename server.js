@@ -112,6 +112,7 @@ const server = http.createServer((req, res) => {
             expires: Date.now() + 900000
           });
           if (!insErr) saved = true;
+          else console.log('DB insert falló, usando Map en memoria:', insErr.message);
         }
         if (!saved) {
           pendingVerifications.set(token, {
@@ -173,7 +174,8 @@ const server = http.createServer((req, res) => {
             .eq('token', token)
             .eq('email', email);
           if (rows && rows.length > 0) pending = rows[0];
-        } else {
+        }
+        if (!pending) {
           pending = pendingVerifications.get(token);
           if (pending && pending.email !== email) pending = null;
         }
@@ -183,20 +185,14 @@ const server = http.createServer((req, res) => {
           return;
         }
         if (Date.now() > pending.expires) {
-          if (supabase) {
-            await supabase.from('pending_verifications').delete().eq('token', token);
-          } else {
-            pendingVerifications.delete(token);
-          }
+          if (supabase) supabase.from('pending_verifications').delete().eq('token', token).then(() => {}).catch(() => {});
+          pendingVerifications.delete(token);
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'El enlace ha expirado' }));
           return;
         }
-        if (supabase) {
-          await supabase.from('pending_verifications').delete().eq('token', token);
-        } else {
-          pendingVerifications.delete(token);
-        }
+        if (supabase) supabase.from('pending_verifications').delete().eq('token', token).then(() => {}).catch(() => {});
+        pendingVerifications.delete(token);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, data: {
           email: pending.email, name: pending.name, password: pending.password,
