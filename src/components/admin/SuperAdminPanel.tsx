@@ -203,16 +203,21 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
         }
         await supabase.from("pedidos").delete().or(`cliente_id.eq.${userId},domiciliario_id.eq.${userId}`);
       }
-      await fetch("/api/eliminar-usuario", {
+      const res = await fetch("/api/eliminar-usuario", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId }),
       });
+      const authResult = await res.json();
+      if (!authResult.success) {
+        alert("Error al borrar de Auth: " + (authResult.error || "desconocido") + ". No se borró el perfil.");
+        return;
+      }
       const { error } = await supabase.from("profiles").delete().eq("id", userId);
       if (error) {
-        alert("Error: " + error.message);
+        alert("Error al borrar perfil: " + error.message);
       } else {
-        alert("Usuario eliminado completamente");
+        alert("Usuario eliminado completamente de Auth y perfiles");
         cargarDatos();
       }
     } catch (err: any) {
