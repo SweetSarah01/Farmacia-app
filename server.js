@@ -159,7 +159,7 @@ const server = http.createServer((req, res) => {
   if (req.url === '/api/confirmar-verificacion' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const { email, token } = JSON.parse(body);
         let pending = null;
