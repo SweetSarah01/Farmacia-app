@@ -164,8 +164,7 @@ useEffect(() => {
   const validarCVV = (cvv: string): boolean => /^\d{3,4}$/.test(cvv);
 
   const validarCelular = (celular: string): boolean => {
-    const limpiar = celular.replace(/\D/g, "");
-    return limpiar.length >= 10 && limpiar.length <= 15;
+    return celular.length === 10;
   };
 
   const metodosPago = [
@@ -1065,7 +1064,7 @@ return (
                   🔒 Pago procesado por Mercado Pago. Serás redirigido para pagar con Nequi.
                 </div>
                 <label className={`text-xs font-semibold mb-1 block ${modoOscuro ? "text-slate-400" : "text-slate-500"}`}>Número de celular Nequi</label>
-                <input placeholder="300 123 4567" value={datosPago.numeroCelular} onChange={e => setDatosPago(d => ({ ...d, numeroCelular: e.target.value }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "bg-slate-700 border-slate-600 text-white" : "bg-white border-slate-200 text-slate-800"}`} />
+                <input placeholder="300 123 4567" value={datosPago.numeroCelular} onChange={e => setDatosPago(d => ({ ...d, numeroCelular: e.target.value.replace(/\D/g, "").slice(0, 10) }))} className={`w-full px-4 py-3 border-2 rounded-xl focus:border-violet-500 focus:ring-2 focus:ring-violet-200 outline-none transition-all text-base ${modoOscuro ? "bg-slate-700 border-slate-600 text-white" : "bg-white border-slate-200 text-slate-800"}`} />
               </div>
             )}
 
