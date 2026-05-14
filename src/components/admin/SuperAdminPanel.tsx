@@ -193,7 +193,7 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
   };
 
   const eliminarUsuario = async (userId: string) => {
-    if (!confirm("¿Eliminar este usuario? También se eliminarán sus pedidos.")) return;
+    if (!confirm("¿Eliminar este usuario? También se eliminarán sus pedidos y su cuenta de Auth.")) return;
     try {
       const { data: pedidos } = await supabase.from("pedidos").select("id")
         .or(`cliente_id.eq.${userId},domiciliario_id.eq.${userId}`);
@@ -203,11 +203,16 @@ export default function SuperAdminPanel({ cerrarSesion, seccion, setSeccion }: a
         }
         await supabase.from("pedidos").delete().or(`cliente_id.eq.${userId},domiciliario_id.eq.${userId}`);
       }
+      await fetch("/api/eliminar-usuario", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
       const { error } = await supabase.from("profiles").delete().eq("id", userId);
       if (error) {
         alert("Error: " + error.message);
       } else {
-        alert("Usuario eliminado");
+        alert("Usuario eliminado completamente");
         cargarDatos();
       }
     } catch (err: any) {

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { Resend } from 'resend';
 import { config as dotenvConfig } from 'dotenv';
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
+import { createClient } from '@supabase/supabase-js';
 
 dotenvConfig({ path: '.env.local' });
 
@@ -25,6 +26,15 @@ if (!fs.existsSync(distDir)) {
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const supabase = SUPABASE_URL && SUPABASE_ANON_KEY ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+let supabaseAdmin = null;
+try {
+  supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } }) : null;
+} catch (e) {
+  console.error('supabaseAdmin init error:', e?.message || e);
+}
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const resend = new Resend(RESEND_API_KEY);
 const pendingVerifications = new Map();
@@ -266,6 +276,30 @@ const server = http.createServer((req, res) => {
         console.error('Error creando pago MP:', err?.message || err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err?.message || err?.toString() || 'Error interno' }));
+      }
+    });
+    return;
+  }
+
+  if (req.url === '/api/eliminar-usuario' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', async () => {
+      try {
+        const { userId } = JSON.parse(body);
+        if (!userId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Falta userId' }));
+          return;
+        }
+        if (supabaseAdmin) {
+          await supabaseAdmin.auth.admin.deleteUser(userId);
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err?.message || 'Error interno' }));
       }
     });
     return;

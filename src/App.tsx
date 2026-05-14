@@ -97,7 +97,12 @@ function AppContent() {
               options: { data: meta }
             });
             if (error) {
-              setVerifyStatus({ email, status: "error", msg: error.message });
+              const msg = error.message.toLowerCase();
+              if (msg.includes("already registered") || msg.includes("user already")) {
+                setVerifyStatus({ email, status: "success", msg: "Cuenta ya existente. Inicia sesión con tu correo y contraseña." });
+              } else {
+                setVerifyStatus({ email, status: "error", msg: error.message });
+              }
             } else {
               setVerifyStatus({ email, status: "success", msg: "Cuenta verificada exitosamente. Ya puedes iniciar sesión." });
             }
