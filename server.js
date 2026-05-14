@@ -354,7 +354,7 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => { body += chunk; });
     req.on('end', async () => {
       try {
-        const { email, password, userData } = JSON.parse(body);
+        const { email, password, userData, profileData, pharmacyData } = JSON.parse(body);
         if (!supabaseAdmin) {
           res.writeHead(500, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'supabaseAdmin no disponible - falta SUPABASE_SERVICE_ROLE_KEY' }));
@@ -377,8 +377,27 @@ const server = http.createServer((req, res) => {
           }
           return;
         }
+        const userId = data.user.id;
+        if (profileData) {
+          const profileInsert = { id: userId, ...profileData };
+          const { error: profileErr } = await supabaseAdmin.from('profiles').upsert(profileInsert, { onConflict: 'id' });
+          if (profileErr) console.error('Error creando profile:', profileErr.message);
+        }
+        let pharmacyId = null;
+        if (pharmacyData) {
+          const { data: pharm, error: pharmErr } = await supabaseAdmin.from('pharmacies').insert({
+            ...pharmacyData,
+            user_id: userId,
+            estado: pharmacyData.estado || 'pendiente',
+          }).select().single();
+          if (pharmErr) console.error('Error creando pharmacy:', pharmErr.message);
+          else pharmacyId = pharm?.id;
+          if (pharmacyId && profileData) {
+            supabaseAdmin.from('profiles').update({ pharmacy_id: pharmacyId, rol: 'admin' }).eq('id', userId).then(() => {}).catch(() => {});
+          }
+        }
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, user: data.user }));
+        res.end(JSON.stringify({ success: true, user: data.user, pharmacy_id: pharmacyId }));
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err?.message || 'Error interno' }));

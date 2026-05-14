@@ -57,7 +57,36 @@ function AppContent() {
                 nombre_usuario: d.nombre_usuario || '',
                 barrio: d.barrio || '',
                 fecha_nacimiento: d.fecha_nacimiento || '',
-              }
+              },
+              profileData: d.tipo === 'farmacia' ? {
+                email: d.email,
+                nombre: d.name,
+                documento: d.documento || '',
+                telefono: d.telefono || '',
+                direccion: d.direccion || '',
+                rol: 'admin',
+              } : {
+                email: d.email,
+                nombre: d.name,
+                nombre_usuario: d.nombre_usuario || d.name?.split('@')[0] || d.email.split('@')[0],
+                documento: d.documento || '',
+                telefono: d.telefono || '',
+                direccion: d.direccion || '',
+                ciudad: d.ciudad || '',
+                barrio: d.barrio || null,
+                fecha_nacimiento: d.fecha_nacimiento || null,
+                rol: 'cliente',
+              },
+              pharmacyData: d.tipo === 'farmacia' ? {
+                nombre: d.nombre_farmacia,
+                nit: d.nit,
+                direccion: d.direccion,
+                barrio: d.barrio,
+                ciudad: d.ciudad,
+                telefono: d.telefono,
+                email: d.email,
+                responsable_nombre: d.name,
+              } : undefined,
             })
           });
           const crearResult = await crearRes.json();
@@ -78,55 +107,10 @@ function AppContent() {
             window.history.replaceState({}, '', window.location.pathname);
             return;
           }
-          if (d.tipo === 'farmacia') {
-            const { data: pharmacyData, error: pharmError } = await supabase.from("pharmacies").insert({
-              nombre: d.nombre_farmacia,
-              nit: d.nit,
-              direccion: d.direccion,
-              barrio: d.barrio,
-              ciudad: d.ciudad,
-              telefono: d.telefono,
-              email: d.email,
-              responsable_nombre: d.name,
-              estado: "pendiente",
-              user_id: crearResult.user.id
-            }).select().single();
-            if (pharmError) {
-              setVerifyStatus({ email, status: "error", msg: pharmError.message });
-              setVerifyDone(true);
-              return;
-            }
-            const { data: perfilExistente } = await supabase.from("profiles").select("id").eq("id", crearResult.user.id).maybeSingle();
-            if (perfilExistente) {
-              await supabase.from("profiles").update({
-                email: d.email, nombre: d.name, documento: d.documento,
-                telefono: d.telefono, direccion: d.direccion,
-                rol: "admin", pharmacy_id: pharmacyData.id
-              }).eq("id", crearResult.user.id);
-            } else {
-              await supabase.from("profiles").insert({
-                id: crearResult.user.id, email: d.email, nombre: d.name,
-                documento: d.documento, telefono: d.telefono, direccion: d.direccion,
-                rol: "admin", pharmacy_id: pharmacyData.id
-              });
-            }
-            setVerifyStatus({ email, status: "success", msg: "Solicitud enviada. Un administrador revisará tu solicitud." });
-          } else {
-            await supabase.from("profiles").upsert({
-              id: crearResult.user.id,
-              email: d.email,
-              nombre_usuario: d.nombre_usuario || d.name?.split("@")[0] || d.email.split("@")[0],
-              nombre: d.name,
-              documento: d.documento || "",
-              telefono: d.telefono || "",
-              direccion: d.direccion || "",
-              ciudad: d.ciudad || "",
-              barrio: d.barrio || null,
-              fecha_nacimiento: d.fecha_nacimiento || null,
-              rol: "cliente"
-            }, { onConflict: "id" });
-            setVerifyStatus({ email, status: "success", msg: "Cuenta verificada exitosamente. Ya puedes iniciar sesión." });
-          }
+          const msg = d.tipo === 'farmacia'
+            ? "Solicitud enviada. Un administrador revisará tu solicitud."
+            : "Cuenta verificada exitosamente. Ya puedes iniciar sesión.";
+          setVerifyStatus({ email, status: "success", msg });
         } else {
           setVerifyStatus({ email, status: "error", msg: result.error || "Error al verificar" });
         }
